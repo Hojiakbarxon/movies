@@ -1,98 +1,145 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# 🎬 Movies Platform API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A NestJS + PostgreSQL (TypeORM) backend for a movie streaming platform — users can browse movies, subscribe to premium plans, leave reviews, save favorites, and stream based on their subscription tier. Admins and superadmins manage content, categories, and users through role-based access control.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Features
 
-## Description
+- **Authentication** — email/OTP-based registration, JWT access + refresh tokens (cookie-based), password reset
+- **Role-based access control** — `user`, `admin`, `superadmin` roles with route-level and ownership-level guards
+- **Users & Profiles** — separate profile entity, avatar upload via Multer
+- **Movies** — CRUD with poster upload, multi-quality video files, category tagging via a dedicated junction entity
+- **Categories** — slug-based, many movies per category
+- **Subscriptions & Payments** — subscription plans, purchase flow, simulated payment processing, auto-renewal via cron job
+- **Favorites & Reviews** — per-user favorites list, star-rated reviews with ownership checks
+- **Subscription-gated streaming** — free vs. premium content access enforced via guard
+- **Centralized error handling** — global exception filter with structured JSON responses
+- **Logging** — Winston-based logging, console output + persisted error logs
+- **Validation** — DTO-based request validation with `class-validator`
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Tech Stack
 
-## Project setup
+| Layer | Technology |
+|---|---|
+| Framework | [NestJS](https://nestjs.com/) 11 |
+| Database | PostgreSQL |
+| ORM | TypeORM |
+| Auth | JWT (`jsonwebtoken`), bcrypt |
+| File uploads | Multer |
+| Email | Nodemailer |
+| Scheduling | `@nestjs/schedule` (cron jobs) |
+| Logging | Winston (`nest-winston`) |
+| Validation | `class-validator`, `class-transformer` |
 
-```bash
-$ npm install
+## Project Structure
+
+```
+src/
+├── auth/            # register, login, OTP, JWT, guards (auth/role/ownership/subscription)
+├── users/            # users + profiles
+├── categories/        # movie categories
+├── movies/            # movies, movie files, reviews, admin movie management
+├── subscriptions/       # subscription plans + user subscriptions
+├── payments/          # simulated payment processing
+├── favourites/          # user favorites
+├── filters/           # global exception filter
+├── log/              # Winston configuration
+├── startup/           # validation pipe config
+└── utils/            # shared helpers (Crypto, Conflict, Token, mail, OTP, Multer configs)
 ```
 
-## Compile and run the project
+## Getting Started
+
+### Prerequisites
+
+- Node.js (LTS)
+- PostgreSQL running locally or accessible via connection string
+
+### Installation
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+git clone < https://github.com/Hojiakbarxon/movies.git >
+cd movies
+npm install
 ```
 
-## Run tests
+### Environment Variables
+
+Copy `.env.example` to `.env` and fill in the values:
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Description |
+|---|---|
+| `PORT` | Port the app listens on |
+| `DB_URL` | PostgreSQL connection string (`postgres://user:pass@host:port/dbname`) |
+| `MAIL_HOST` | SMTP host (e.g. `smtp.gmail.com`) |
+| `MAIL_PORT` | SMTP port |
+| `MAIL_USER` | SMTP account email |
+| `MAIL_PASS` | SMTP account password / app password |
+| `ACCESS_TOKEN_KEY` | JWT secret for access tokens |
+| `ACCESS_TOKEN_TIME` | Access token expiry |
+| `REFRESH_TOKEN_KEY` | JWT secret for refresh tokens |
+| `REFRESH_TOKEN_TIME` | Refresh token expiry |
+| `SUPER_ADMIN_USERNAME` | Seeded superadmin username |
+| `SUPER_ADMIN_EMAIL` | Seeded superadmin email |
+| `SUPER_ADMIN_PASSWORD` | Seeded superadmin password |
+
+> On startup, the app automatically seeds a superadmin account from these credentials if one doesn't already exist.
+
+### Running the app
+
+```bash
+# development (watch mode)
+npm run start:dev
+
+# production build
+npm run build
+npm run start:prod
+```
+
+The API is served under the `/api` global prefix, e.g. `http://localhost:3000/api/movies`.
+
+Uploaded files (avatars, posters, movie files) are served statically from `/uploads`.
+
+## Testing
 
 ```bash
 # unit tests
-$ npm run test
+npm run test
 
 # e2e tests
-$ npm run test:e2e
+npm run test:e2e
 
-# test coverage
-$ npm run test:cov
+# coverage
+npm run test:cov
 ```
 
-## Deployment
+## Core Modules Overview
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### Auth
+Registration flow uses a pending-user + OTP confirmation step before an account is created. Login issues a short-lived access token and a long-lived refresh token (stored as an `httpOnly` cookie). Route protection is layered:
+- `AuthGuard` — verifies the JWT and attaches the user to the request
+- `RoleGuard` + `@Roles()` — restricts routes by role
+- `OwnershipGuard` — ensures a user can only modify their own resources (reviews, payments, profile) unless they're an admin/superadmin
+- `SubscriptionGuard` — gates premium content behind an active subscription
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### Movies
+Movies belong to categories through a dedicated `MovieCategory` junction entity (explicit `ManyToOne`/`OneToMany` relations rather than an implicit `ManyToMany`), and can have multiple `MovieFile` entries for different qualities/languages. Admin-only movie management lives in a separate `admin/movies` controller.
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+### Subscriptions & Payments
+Purchasing a plan creates a `UserSubscription` in `pending_payment` status with no dates set. Paying (simulated — no real gateway) marks the payment `completed` and activates the subscription, which is when `start_date`/`end_date` are calculated from the plan's `duration_days`. An hourly cron job expires subscriptions past their `end_date`, or auto-renews them (new payment + reactivation) if `auto_renew` is set.
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+### Favorites & Reviews
+Simple per-user relations to movies — favorites for a personal watchlist, reviews with a 1–5 rating enforced at the database level via a `CHECK` constraint.
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+UNLICENSED — private project.
+
+## Partnership
+I am really excited to work on new features with YOU, feel free to contribute
+
+## Owner
+Hojiakbarxon Olimxo'jayev
