@@ -27,6 +27,7 @@ import { APP_FILTER } from '@nestjs/core';
 import { ExceptionFilterFilter } from './filters/exception-filter/exception-filter.filter';
 import { WinstonModule } from 'nest-winston';
 import { winstonConfig } from './log/winston.config';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { winstonConfig } from './log/winston.config';
       envFilePath: ".env"
     }),
     WinstonModule.forRoot(winstonConfig),
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRoot({
       type: "postgres",
       url: String(process.env.DB_URL),
