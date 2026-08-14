@@ -16,6 +16,7 @@ import { Conflict } from '../utils/conflict';
 import { join } from 'path';
 import { unlink } from 'fs/promises';
 import { envConfig } from '../utils/env.config';
+import { R2Service } from '../utils/r2.service';
 
 @Injectable()
 export class UsersService {
@@ -25,7 +26,8 @@ export class UsersService {
     @InjectRepository(Profile)
     private readonly profileRepo: Repository<Profile>,
     private readonly crypto: Crypto,
-    private readonly conflict: Conflict
+    private readonly conflict: Conflict,
+    private readonly r2Service: R2Service
   ) { }
 
   async create(dto: CreateUserDto, avatar?: Express.Multer.File): Promise<Isuccess> {
@@ -40,7 +42,7 @@ export class UsersService {
       username,
       email,
       password_hash,
-      avatar_url: avatar ? `uploads/avatars/${avatar.filename}` : undefined
+      avatar_url: avatar ? await this.r2Service.upload(avatar, 'avatars') : undefined
     });
 
     const savedUser = await this.userRepo.save(user);
@@ -67,7 +69,7 @@ export class UsersService {
       username,
       email,
       password_hash,
-      avatar_url: avatar ? `uploads/avatars/${avatar.filename}` : undefined,
+      avatar_url: avatar ? await this.r2Service.upload(avatar, 'avatars') : undefined,
       role
     });
 
@@ -176,10 +178,9 @@ export class UsersService {
 
     if (avatar) {
       if (user.avatar_url) {
-        const oldAvatarPath = join(process.cwd(), user.avatar_url);
-        await unlink(oldAvatarPath);
+        await this.r2Service.delete(user.avatar_url);
       }
-      updateData.avatar_url = `uploads/avatars/${avatar.filename}`;
+      updateData.avatar_url = await this.r2Service.upload(avatar, 'avatars')
     }
 
     const updatedUser = await this.userRepo.update(id, { ...updateData });
@@ -212,8 +213,7 @@ export class UsersService {
     await this.userRepo.delete({ id });
 
     if (user.avatar_url) {
-      let oldAvatarPath = join(process.cwd(), user.avatar_url);
-      await unlink(oldAvatarPath);
+      await this.r2Service.delete(user.avatar_url);
     };
 
     return {

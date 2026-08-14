@@ -13,6 +13,7 @@ import { ProcessingUser } from './entities/processing.user.entity';
 import { Reviews } from '../movies/entities/reviews.entity';
 import { Payment } from '../payments/entities/payment.entity';
 import { UserSubscription } from '../subscriptions/entities/user-subscription.entity';
+import { R2Service } from '../utils/r2.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([
@@ -25,6 +26,6 @@ import { UserSubscription } from '../subscriptions/entities/user-subscription.en
     UserSubscription
   ])],
   controllers: [AuthController],
-  providers: [AuthService, Conflict, Token, Crypto, UsersService]
+  providers: [AuthService, Conflict, Token, Crypto, UsersService, R2Service]
 })
 export class AuthModule { }

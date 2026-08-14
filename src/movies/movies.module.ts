@@ -14,6 +14,7 @@ import { Token } from '../utils/Token';
 import { Payment } from '../payments/entities/payment.entity';
 import { UserSubscription } from '../subscriptions/entities/user-subscription.entity';
 import { AdminMoviesController } from './admin.movies.controller';
+import { R2Service } from '../utils/r2.service';
 
 @Module({
   imports : [
@@ -30,6 +31,6 @@ import { AdminMoviesController } from './admin.movies.controller';
     ])
   ],
   controllers: [MoviesController, AdminMoviesController],
-  providers: [MoviesService, Conflict, Token],
+  providers: [MoviesService, Conflict, Token, R2Service],
 })
 export class MoviesModule {}

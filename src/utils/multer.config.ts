@@ -1,16 +1,10 @@
-import { diskStorage } from 'multer';
+import { diskStorage, memoryStorage } from 'multer';
 import { extname } from 'path';
 import { BadRequestException } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 
 export const avatarMulterOptions = {
-  storage: diskStorage({
-    destination: './uploads/avatars',
-    filename: (_req, file, callback) => {
-      const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
-      callback(null, uniqueName);
-    },
-  }),
+  storage: memoryStorage(),
   fileFilter: (_req, file, callback) => {
     const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowedMimes.includes(file.mimetype)) {
@@ -27,12 +21,7 @@ export const avatarMulterOptions = {
 };
 
 export const posterMulterOptions = {
-  storage: diskStorage({
-    destination: './uploads/posters',
-    filename: (req, file, callback) => {
-      callback(null, `${uuidv4()}${extname(file.originalname)}`);
-    },
-  }),
+  storage: memoryStorage(),
   fileFilter: (req, file, callback) => {
     const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowedMimes.includes(file.mimetype)) {
@@ -44,12 +33,7 @@ export const posterMulterOptions = {
 };
 
 export const movieFileMulterOptions = {
-  storage: diskStorage({
-    destination: './uploads/movies',
-    filename: (req, file, callback) => {
-      callback(null, `${uuidv4()}${extname(file.originalname)}`);
-    },
-  }),
+  storage: memoryStorage(),
   fileFilter: (req, file, callback) => {
     const allowedMimes = ['video/mp4', 'video/webm', 'video/quicktime'];
     if (!allowedMimes.includes(file.mimetype)) {

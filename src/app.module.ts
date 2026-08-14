@@ -41,6 +41,9 @@ import { ScheduleModule } from '@nestjs/schedule';
       type: "postgres",
       url: String(process.env.DB_URL),
       synchronize: true,
+      ssl: {
+        rejectUnauthorized: false
+      },
       entities: [User, Profile, SubscriptionPlan, UserSubscription, Payment, Category, Movie, MovieCategory, MovieFile, PendingUser, ProcessingUser, Favourites, Reviews]
     }),
     UsersModule,

@@ -17,6 +17,7 @@ import { UpdateMovieFileDto } from './dto/update-movie-file.dto';
 import { UpdateMovieDto } from './dto/update-movie.dto';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { Reviews } from './entities/reviews.entity';
+import { R2Service } from '../utils/r2.service';
 
 @Injectable()
 export class MoviesService {
@@ -34,6 +35,7 @@ export class MoviesService {
     @InjectRepository(Reviews)
     private readonly reviewRepo: Repository<Reviews>,
     private readonly conflict: Conflict,
+    private readonly r2Service: R2Service
   ) { }
 
   async create(
@@ -59,7 +61,7 @@ export class MoviesService {
       release_year: dto.release_year,
       duration_minutes: dto.duration_minutes,
       subscription_type: dto.subscription_type,
-      poster_url: poster ? `/uploads/posters/${poster.filename}` : undefined,
+      poster_url: poster ? await this.r2Service.upload(poster, 'posters') : undefined,
       created_by: user,
       rating: dto.rating
     });
@@ -230,14 +232,9 @@ export class MoviesService {
     }
 
     if (poster) {
-      updateData.poster_url = `/uploads/posters/${poster.filename}`;
+      updateData.poster_url = await this.r2Service.upload(poster, 'posters');
       if (movie.poster_url) {
-        const oldPath = join(process.cwd(), movie.poster_url)
-        try {
-          await unlink(oldPath)
-        } catch (error) {
-          console.log(error)
-        }
+        await this.r2Service.delete(movie.poster_url);
       }
     }
 
@@ -270,12 +267,7 @@ export class MoviesService {
   async remove(id: string): Promise<Isuccess> {
     const movie = await this.conflict.mustExist({ id }, this.movieRepo, 'Movie', 'ID') as Movie;
     if (movie.poster_url) {
-      const oldPath = join(process.cwd(), movie.poster_url);
-      try {
-        await unlink(oldPath)
-      } catch (error) {
-        console.log(error)
-      }
+      await this.r2Service.delete(movie.poster_url);
     }
     await this.movieRepo.delete({ id });
 
@@ -299,7 +291,7 @@ export class MoviesService {
 
     const movieFile = this.movieFileRepo.create({
       movie,
-      file_url: `/uploads/movies/${file.filename}`,
+      file_url: await this.r2Service.upload(file, 'movies'),
       quality: dto.quality,
       language: dto.language ?? 'uz',
     });
@@ -337,12 +329,7 @@ export class MoviesService {
   async removeFile(fileId: string): Promise<Isuccess> {
     const movieFile = await this.conflict.mustExist({ id: fileId }, this.movieFileRepo, 'MovieFile', 'ID') as MovieFile;
     if (movieFile.file_url) {
-      const oldPath = join(process.cwd(), movieFile.file_url)
-      try {
-        await unlink(oldPath)
-      } catch (error) {
-        console.log(error)
-      }
+      await this.r2Service.delete(movieFile.file_url);
     }
     await this.movieFileRepo.delete({ id: fileId });
 
