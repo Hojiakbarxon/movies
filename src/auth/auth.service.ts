@@ -44,6 +44,8 @@ export class AuthService {
             throw new ConflictException("User with this email has already registered")
         };
 
+        await this.conflicts.mustBeUnique({ username }, this.userRepo, 'User', "email");
+
         let password_hash = await this.crypto.hash(password);
         let otp = generateOtp();
 
@@ -218,6 +220,8 @@ export class AuthService {
         await this.userRepo.update({ email }, {
             password_hash
         });
+
+        await this.proUserRepo.delete({ email });
 
 
         return {

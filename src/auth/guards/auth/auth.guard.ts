@@ -19,11 +19,12 @@ export class AuthGuard implements CanActivate {
     if (bearer !== "Bearer" || !token) throw new BadRequestException("Invalid token.");
 
 
-    let data = this.token.verifyAccessToken(token);
-
-    if (!data) throw new UnauthorizedException("Invalid token");
-
-    req['user'] = data;
+    try {
+      let data = this.token.verifyAccessToken(token);
+      req['user'] = data;
+    } catch (error) {
+      throw new UnauthorizedException("Please log in.");
+    }
     
     return true;
   }
