@@ -28,6 +28,8 @@ async function main() {
   
   app.setGlobalPrefix("api");
   
+  app.enableCors({ origin: true, credentials: true });
+
   const userService = app.get(UsersService);
   let message = await userService.createSuperAdmin();
   console.log(message);
