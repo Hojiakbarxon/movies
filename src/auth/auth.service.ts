@@ -170,6 +170,7 @@ export class AuthService {
         let expires_in = new Date(Date.now() + 5 * 60 * 1000);
 
         if (existedProcessingUser) {
+            await sendMail(email, otp)
             await this.proUserRepo.update({ id: existedProcessingUser.id }, {
                 email,
                 otp,
@@ -185,6 +186,7 @@ export class AuthService {
             };
         };
 
+        await sendMail(email, otp)
         let processingUser = await this.proUserRepo.create({
             ...dto,
             otp,
