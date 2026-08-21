@@ -10,6 +10,7 @@ import {
 import { User } from '../../users/entities/user.entity';
 import { SubscriptionPlan } from './subscription-plan.entity';
 import { Payment } from '../../payments/entities/payment.entity';
+import { BaseEntity } from '../../utils/base.entity';
 
 export enum SubscriptionStatus {
     ACTIVE = 'active',
@@ -19,10 +20,7 @@ export enum SubscriptionStatus {
 }
 
 @Entity('user_subscriptions')
-export class UserSubscription {
-    @PrimaryGeneratedColumn('uuid')
-    id: string;
-
+export class UserSubscription extends BaseEntity{
     @ManyToOne(() => User, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'user_id' })
     user: User;

@@ -7,12 +7,10 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { User } from './user.entity';
+import { TimestampedEntity } from '../../utils/base.entity';
 
 @Entity('profiles')
-export class Profile {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
+export class Profile extends TimestampedEntity {
   @Column({ type: 'varchar', length: 100, nullable: true })
   full_name: string;
 
@@ -21,9 +19,6 @@ export class Profile {
 
   @Column({ type: 'varchar', length: 50, nullable: true })
   country: string;
-
-  @CreateDateColumn()
-  created_at: Date;
 
   @OneToOne(() => User, (user) => user.profile, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })

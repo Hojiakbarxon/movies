@@ -1,12 +1,10 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToMany, OneToMany } from 'typeorm';
 import { Movie } from '../../movies/entities/movie.entity';
 import { MovieCategory } from '../../movies/entities/movie-category.entity';
+import { BaseEntity } from '../../utils/base.entity';
 
 @Entity('categories')
-export class Category {
-    @PrimaryGeneratedColumn('uuid')
-    id: string;
-
+export class Category extends BaseEntity{
     @Column({ type: 'varchar', length: 50 })
     name: string;
 
@@ -15,9 +13,6 @@ export class Category {
 
     @Column({ type: 'text', nullable: true })
     description: string | null;
-
-    //   @ManyToMany(() => Movie, (movie) => movie.categories)
-    //   movies: Movie[];
 
     @OneToMany(() => MovieCategory, (movie_category) => movie_category.category)
     movie_categories: MovieCategory[]

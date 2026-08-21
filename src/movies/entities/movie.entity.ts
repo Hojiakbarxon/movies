@@ -12,6 +12,7 @@ import { MovieFile } from './movie-file.entity';
 import { MovieCategory } from './movie-category.entity';
 import { Favourites } from '../../favourites/entities/favourite.entity';
 import { Reviews } from './reviews.entity';
+import { TimestampedEntity } from '../../utils/base.entity';
 
 export enum SubscriptionType {
   FREE = 'free',
@@ -19,10 +20,7 @@ export enum SubscriptionType {
 }
 
 @Entity('movies')
-export class Movie {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
+export class Movie extends TimestampedEntity{
   @Column({ type: 'varchar', length: 100 })
   title: string;
 
@@ -53,9 +51,6 @@ export class Movie {
   @ManyToOne(() => User, (user) => user.movies, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'created_by' })
   created_by: User | null;
-
-  @CreateDateColumn()
-  created_at: Date;
 
   @OneToMany(() => MovieFile, (file) => file.movie)
   files: MovieFile[];

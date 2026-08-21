@@ -7,6 +7,7 @@ import {
     JoinColumn,
 } from 'typeorm';
 import { UserSubscription } from '../../subscriptions/entities/user-subscription.entity';
+import { TimestampedEntity } from '../../utils/base.entity';
 
 export enum PaymentMethod {
     CARD = 'card',
@@ -23,10 +24,7 @@ export enum PaymentStatus {
 }
 
 @Entity('payments')
-export class Payment {
-    @PrimaryGeneratedColumn('uuid')
-    id: string;
-
+export class Payment extends TimestampedEntity {
     @ManyToOne(() => UserSubscription, (userSub) => userSub.payments,{ onDelete: 'CASCADE' })
     @JoinColumn({ name: 'user_subscription_id' })
     user_subscription: UserSubscription;
@@ -45,7 +43,4 @@ export class Payment {
 
     @Column({ type: 'varchar', length: 100, nullable: true })
     external_transaction_id: string | null;
-
-    @CreateDateColumn()
-    created_at: Date;
 }

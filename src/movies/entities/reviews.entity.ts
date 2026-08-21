@@ -1,12 +1,10 @@
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
 import { User } from "../../users/entities/user.entity";
 import { Movie } from "./movie.entity";
+import { TimestampedEntity } from "../../utils/base.entity";
 
 @Entity("Reviews")
-export class Reviews {
-    @PrimaryGeneratedColumn("uuid")
-    id: string;
-
+export class Reviews extends TimestampedEntity{
     @ManyToOne(() => User, (user) => user.reviews, {
         onDelete: "CASCADE"
     })
@@ -24,7 +22,4 @@ export class Reviews {
 
     @Column({ type: "text" })
     comment: string;
-
-    @CreateDateColumn()
-    created_at: Date;
 }

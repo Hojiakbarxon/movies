@@ -6,6 +6,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Movie } from './movie.entity';
+import { BaseEntity } from '../../utils/base.entity';
 
 export enum VideoQuality {
   P240 = '240p',
@@ -17,10 +18,7 @@ export enum VideoQuality {
 }
 
 @Entity('movie_files')
-export class MovieFile {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
+export class MovieFile extends BaseEntity{
   @ManyToOne(() => Movie, (movie) => movie.files, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'movie_id' })
   movie: Movie;
