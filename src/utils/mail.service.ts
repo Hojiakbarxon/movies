@@ -25,7 +25,7 @@
 
 
 // The website I used to deploy render.com blocks smtp to send emails, so I decided to change sending emails.
-export const sendMail = async (recipientEmail, otpCode) => {
+export const sendMail = async (recipientEmail, message) => {
     const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -35,8 +35,8 @@ export const sendMail = async (recipientEmail, otpCode) => {
         body: JSON.stringify({
             from: 'onboarding@resend.dev',
             to: recipientEmail,
-            subject: 'Your OTP Code for Movies web-site',
-            html: `<p>Your code is: <strong>${otpCode}</strong></p>`,
+            subject: 'Movies web-site',
+            html: `<p>${message}</p>`,
         }),
     });
 
