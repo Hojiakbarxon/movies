@@ -1,11 +1,7 @@
 import { IsEmail, IsNotEmpty, IsString, Matches, MaxLength, MinLength } from "class-validator";
+import { BaseDto } from "../../utils/base.dto";
 
-export class RegisterDto {
-    @IsEmail()
-    @IsNotEmpty()
-    @MaxLength(100)
-    email: string;
-
+export class RegisterDto extends BaseDto{
     @IsString()
     @IsNotEmpty()
     @MinLength(3)

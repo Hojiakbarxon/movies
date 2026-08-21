@@ -1,8 +1,6 @@
 import { IsEmail, IsNotEmpty, MaxLength } from "class-validator";
+import { BaseDto } from "../../utils/base.dto";
 
-export class ForgotPasswordDto {
-    @IsEmail()
-    @IsNotEmpty()
-    @MaxLength(100)
-    email: string;
+export class ForgotPasswordDto extends BaseDto {
+    
 }

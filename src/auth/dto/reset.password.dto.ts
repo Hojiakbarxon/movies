@@ -1,16 +1,7 @@
 import { IsEmail, IsNotEmpty, IsString, Length, MaxLength, MinLength } from "class-validator";
+import { OTPBaseDto } from "../../utils/base.dto";
 
-export class ResetPasswordDto {
-    @IsEmail()
-    @IsNotEmpty()
-    @MaxLength(100)
-    email: string;
-
-    @IsString()
-    @IsNotEmpty()
-    @Length(6)
-    otp: string;
-
+export class ResetPasswordDto extends OTPBaseDto {
     @IsString()
     @IsNotEmpty()
     @MinLength(8)

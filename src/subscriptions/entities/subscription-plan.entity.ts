@@ -3,12 +3,10 @@ import {
   PrimaryGeneratedColumn,
   Column,
 } from 'typeorm';
+import { BaseEntity } from '../../utils/base.entity';
 
 @Entity('subscription_plans')
-export class SubscriptionPlan {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
+export class SubscriptionPlan extends BaseEntity{
   @Column({ type: 'varchar', length: 50 })
   name: string;
 

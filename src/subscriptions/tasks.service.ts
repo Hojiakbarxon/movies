@@ -56,7 +56,7 @@ export class Task {
             let savedPayment = await this.paymentRepo.save(payment)
             await this.userSubService.activate(userSub.id);
 
-            await sendMail(userSub.user.email, `You subscription automatically renewed`);
+            // await sendMail(userSub.user.email, `You subscription automatically renewed`);
         })
 
         return true

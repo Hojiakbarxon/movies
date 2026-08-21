@@ -10,6 +10,7 @@ import { Profile } from './profile.entity';
 import { Movie } from '../../movies/entities/movie.entity';
 import { Favourites } from '../../favourites/entities/favourite.entity';
 import { Reviews } from '../../movies/entities/reviews.entity';
+import { TimestampedEntity } from '../../utils/base.entity';
 
 export enum UserRole {
   USER = 'user',
@@ -18,10 +19,7 @@ export enum UserRole {
 }
 
 @Entity('users')
-export class User {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
+export class User extends TimestampedEntity {
   @Column({ type: 'varchar', length: 50, unique: true })
   username: string;
 
@@ -40,9 +38,6 @@ export class User {
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   avatar_url: string;
-
-  @CreateDateColumn()
-  created_at: Date;
 
   @OneToOne(() => Profile, (profile) => profile.user, { cascade: true })
   profile: Profile;
