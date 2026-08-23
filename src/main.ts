@@ -17,23 +17,26 @@ async function main() {
     logger: WinstonModule.createLogger(winstonConfig)
   });
 
-  
+
   validationConfig(app);
-  
+
   // app.useStaticAssets(join(__dirname, '..', 'uploads'), {
   //   prefix: '/uploads/',
   // });
-  
+
   app.use(cookieParser())
-  
+
   app.setGlobalPrefix("api");
-  
-  app.enableCors({ origin: true, credentials: true });
+
+  app.enableCors({
+    origin: ['https://housereel.netlify.app'],
+    credentials: true,
+  });
 
   const userService = app.get(UsersService);
   let message = await userService.createSuperAdmin();
   console.log(message);
-  
+
   await app.listen(port, () => console.log(`Server is running on port ${port}`));
 }
 main();
