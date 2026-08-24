@@ -164,15 +164,12 @@ export class UsersService {
   }
 
   async update(id: string, dto: UpdateUserDto, avatar?: Express.Multer.File): Promise<Isuccess> {
-    let { email, username } = dto;
+    let { username } = dto;
     const user = await this.conflict.mustExist({ id }, this.userRepo, 'User', 'ID') as User;
 
-    if (email) await this.conflict.mustBeUniqueOnUpdate(id, { email }, this.userRepo, "User", "email");
-
-    if (username) await this.conflict.mustBeUniqueOnUpdate(id, { username }, this.userRepo, "User", "email");
+    if (username) await this.conflict.mustBeUniqueOnUpdate(id, { username }, this.userRepo, "User", "username");
 
     const updateData: Partial<User> = {
-      email: dto.email ? dto.email : user.email,
       username: dto.username ? dto.username : user.username
     };
 
