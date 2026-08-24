@@ -18,6 +18,7 @@ import { UpdateMovieDto } from './dto/update-movie.dto';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { Reviews } from './entities/reviews.entity';
 import { R2Service } from '../utils/r2.service';
+import { reviewItems } from '../utils/Custom Types/review-item.type';
 
 @Injectable()
 export class MoviesService {
@@ -160,16 +161,31 @@ export class MoviesService {
           category: true
         },
         files: true,
-        reviews: true
+        reviews: {
+          user: true
+        }
       },
     }) as Movie;
 
     if (!movie) throw new BadRequestException('Movie not found');
 
+
     let sumOfRating: number = 0;
+    let items: Partial<reviewItems>[] = [];
 
     movie.reviews.forEach((review) => {
       sumOfRating += review.rating;
+      let item: Partial<reviewItems> = {
+        id: review.id,
+        user: {
+          id: review.user.id,
+          username: review.user.username,
+        },
+        rating: review.rating,
+        comment: review.comment,
+        created_at: review.created_at
+      };
+      items.push(item);
     });
 
     let total_review: number = movie.reviews.length;
@@ -192,7 +208,8 @@ export class MoviesService {
       files: allowed ? movie.files : { message: "Activate subscription plan to watch the movie" },
       reviews: {
         average_rating,
-        count: total_review
+        count: total_review,
+        items
       }
     };
 

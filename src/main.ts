@@ -29,7 +29,7 @@ async function main() {
   app.setGlobalPrefix("api");
 
   app.enableCors({
-    origin: ['https://housereel.netlify.app'],
+    origin: ['https://housereel.netlify.app', 'http://localhost:5173'],
     credentials: true,
   });
 
