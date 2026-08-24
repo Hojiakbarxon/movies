@@ -1,18 +1,14 @@
-import { IsString, IsOptional, MaxLength } from 'class-validator';
+import { IsString, IsOptional, MaxLength, IsEnum } from 'class-validator';
+import { Countries } from '../../utils/Custom Types/countries-type';
 
 export class UpdateProfileDto {
-  @IsOptional()
   @IsString()
   @MaxLength(100)
+  @IsOptional()
   full_name?: string;
 
-  @IsOptional()
-  @IsString()
-  @MaxLength(20)
-  phone?: string;
 
+  @IsEnum(Countries)
   @IsOptional()
-  @IsString()
-  @MaxLength(50)
   country?: string;
 }

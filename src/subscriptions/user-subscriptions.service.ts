@@ -11,7 +11,6 @@ import { User } from '../users/entities/user.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Payment, PaymentStatus } from '../payments/entities/payment.entity';
 import { v4 as uuidv4 } from "uuid"
-import { sendMail } from '../utils/mail.service';
 @Injectable()
 export class UserSubscriptionsService {
   constructor(

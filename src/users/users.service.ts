@@ -193,8 +193,7 @@ export class UsersService {
 
     const updateData: Partial<Profile> = {
       full_name: dto?.full_name ? dto.full_name : profile.full_name,
-      country: dto.country ? dto.country : profile.country,
-      phone: dto.phone ? dto.phone : profile.phone
+      country: dto.country ? dto.country : profile.country
     };
 
     const updatedProfile = await this.profileRepo.update(profile.id, {

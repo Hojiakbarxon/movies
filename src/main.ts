@@ -20,10 +20,6 @@ async function main() {
 
   validationConfig(app);
 
-  // app.useStaticAssets(join(__dirname, '..', 'uploads'), {
-  //   prefix: '/uploads/',
-  // });
-
   app.use(cookieParser())
 
   app.setGlobalPrefix("api");

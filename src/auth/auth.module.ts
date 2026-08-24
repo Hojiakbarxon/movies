@@ -14,6 +14,7 @@ import { Reviews } from '../movies/entities/reviews.entity';
 import { Payment } from '../payments/entities/payment.entity';
 import { UserSubscription } from '../subscriptions/entities/user-subscription.entity';
 import { R2Service } from '../utils/r2.service';
+import { MailService } from '../utils/mail.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([
@@ -26,6 +27,6 @@ import { R2Service } from '../utils/r2.service';
     UserSubscription
   ])],
   controllers: [AuthController],
-  providers: [AuthService, Conflict, Token, Crypto, UsersService, R2Service]
+  providers: [AuthService, Conflict, Token, Crypto, UsersService, R2Service, MailService]
 })
 export class AuthModule { }

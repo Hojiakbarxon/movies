@@ -5,14 +5,15 @@ import { SubscriptionStatus, UserSubscription } from "./entities/user-subscripti
 import { LessThan, Repository } from "typeorm";
 import { Payment, PaymentStatus } from "../payments/entities/payment.entity";
 import { v4 as uuidv4 } from "uuid"
-import { sendMail } from "../utils/mail.service";
+import { MailService} from "../utils/mail.service";
 import { UserSubscriptionsService } from "./user-subscriptions.service";
 @Injectable()
 export class Task {
     constructor(
         @InjectRepository(UserSubscription) private readonly userSubRepo: Repository<UserSubscription>,
         @InjectRepository(Payment) private readonly paymentRepo: Repository<Payment>,
-        private readonly userSubService: UserSubscriptionsService
+        private readonly userSubService: UserSubscriptionsService,
+        private readonly mail : MailService
     ) {
     }
     @Cron(CronExpression.EVERY_HOUR)
@@ -56,7 +57,7 @@ export class Task {
             let savedPayment = await this.paymentRepo.save(payment)
             await this.userSubService.activate(userSub.id);
 
-            await sendMail('olimxojayev22.2007@gmail.com', `${userSub.user.username}'s subscription automatically renewed`);
+            await this.mail.sendRenewalSummary('olimxojayev22.2007@gmail.com', userSub.user.username);
         })
 
         return true

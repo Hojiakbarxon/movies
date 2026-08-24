@@ -5,7 +5,6 @@ import { Repository } from 'typeorm';
 import { RegisterDto } from './dto/register.dto';
 import { Crypto } from '../utils/Crypto';
 import { generateOtp } from '../utils/otp.service';
-import { sendMail } from '../utils/mail.service';
 import { Isuccess } from '../utils/success-response-interface';
 import { ConfrimOtpDto } from './dto/confirm-otp.dto';
 import { Conflict } from '../utils/conflict';
@@ -18,6 +17,7 @@ import { UsersService } from '../users/users.service';
 import { ForgotPasswordDto } from './dto/forgot.password.dto';
 import { ProcessingUser } from './entities/processing.user.entity';
 import { ResetPasswordDto } from './dto/reset.password.dto';
+import { MailService } from '../utils/mail.service';
 
 @Injectable()
 export class AuthService {
@@ -30,7 +30,9 @@ export class AuthService {
         private readonly crypto: Crypto,
         private readonly conflicts: Conflict,
         private readonly token: Token,
-        private readonly userService: UsersService) {
+        private readonly userService: UsersService,
+        private readonly mail: MailService
+    ) {
     }
 
     async register(dto: RegisterDto): Promise<Isuccess> {
@@ -56,7 +58,7 @@ export class AuthService {
         let expires_in = new Date(Date.now() + 5 * 60 * 1000);
 
         if (penUser) {
-            // let mail = await sendMail(email, otp);
+            let mail = await this.mail.sendMail(email, otp);
             await this.penUserRepo.update({ id: penUser.id }, {
                 otp,
                 password_hash,
@@ -72,7 +74,7 @@ export class AuthService {
             }
         }
 
-        // let mail = await sendMail(email, otp);
+        let mail = await this.mail.sendMail(email, otp);
 
         let pendingUser = await this.penUserRepo.create({
             email,
@@ -103,7 +105,7 @@ export class AuthService {
             throw new BadRequestException("OTP is expired, request a new one");
         };
 
-        if (otp !== penUser.otp && otp !== '487941') {
+        if (otp !== penUser.otp) {
             throw new ConflictException("OTP is expired or wrong")
         };
 
@@ -170,7 +172,7 @@ export class AuthService {
         let expires_in = new Date(Date.now() + 5 * 60 * 1000);
 
         if (existedProcessingUser) {
-            await sendMail(email, otp)
+            await this.mail.sendMail(email, otp)
             await this.proUserRepo.update({ id: existedProcessingUser.id }, {
                 email,
                 otp,
@@ -186,7 +188,7 @@ export class AuthService {
             };
         };
 
-        await sendMail(email, otp)
+        await this.mail.sendMail(email, otp)
         let processingUser = await this.proUserRepo.create({
             ...dto,
             otp,
@@ -213,7 +215,7 @@ export class AuthService {
             throw new BadRequestException("OTP is expired, request a new one");
         };
 
-        if (otp !== processingUser.otp && otp !== '487941') throw new BadRequestException("OTP is wrong or expired");
+        if (otp !== processingUser.otp) throw new BadRequestException("OTP is wrong or expired");
 
         if (password !== repeat_password) throw new BadRequestException("Password did not match");
 
