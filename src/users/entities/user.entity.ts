@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   OneToOne,
   OneToMany,
+  Index,
 } from 'typeorm';
 import { Profile } from './profile.entity';
 import { Movie } from '../../movies/entities/movie.entity';
@@ -23,6 +24,7 @@ export class User extends TimestampedEntity {
   @Column({ type: 'varchar', length: 50, unique: true })
   username: string;
 
+  @Index('IDX_USER_EMAIL')
   @Column({ type: 'varchar', length: 100, unique: true })
   email: string;
 

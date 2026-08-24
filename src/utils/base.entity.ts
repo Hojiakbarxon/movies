@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, PrimaryGeneratedColumn } from "typeorm";
+import { Column, CreateDateColumn, Index, PrimaryGeneratedColumn } from "typeorm";
 
 export abstract class BaseEntity {
     @PrimaryGeneratedColumn('uuid')
@@ -11,6 +11,7 @@ export abstract class TimestampedEntity extends BaseEntity {
 }
 
 export abstract class OTPUser extends BaseEntity {
+    @Index()
     @Column({ type: 'varchar', length: 100, unique: true })
     email: string;
     

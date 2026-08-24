@@ -23,11 +23,12 @@ import { ProcessingUser } from './auth/entities/processing.user.entity';
 import { FavouritesModule } from './favourites/favourites.module';
 import { Favourites } from './favourites/entities/favourite.entity';
 import { Reviews } from './movies/entities/reviews.entity';
-import { APP_FILTER } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ExceptionFilterFilter } from './filters/exception-filter/exception-filter.filter';
 import { WinstonModule } from 'nest-winston';
 import { winstonConfig } from './log/winston.config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
@@ -35,6 +36,12 @@ import { ScheduleModule } from '@nestjs/schedule';
       isGlobal: true,
       envFilePath: ".env"
     }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60_000,
+        limit: 100
+      }
+    ]),
     WinstonModule.forRoot(winstonConfig),
     ScheduleModule.forRoot(),
     TypeOrmModule.forRoot({
@@ -56,9 +63,16 @@ import { ScheduleModule } from '@nestjs/schedule';
     FavouritesModule
   ],
   controllers: [AppController],
-  providers: [AppService, {
-    provide: APP_FILTER,
-    useClass: ExceptionFilterFilter
-  }],
+  providers: [
+    AppService,
+    {
+      provide: APP_FILTER,
+      useClass: ExceptionFilterFilter
+    },
+    {
+      provide : APP_GUARD,
+      useClass : ThrottlerGuard
+    }
+  ],
 })
 export class AppModule { }

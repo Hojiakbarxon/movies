@@ -6,6 +6,7 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { MovieFile } from './movie-file.entity';
@@ -24,6 +25,7 @@ export class Movie extends TimestampedEntity{
   @Column({ type: 'varchar', length: 100 })
   title: string;
 
+  @Index('IDX_MOVIE_SLUG')
   @Column({ type: 'varchar', length: 100, unique: true })
   slug: string;
 
