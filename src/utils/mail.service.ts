@@ -89,7 +89,7 @@ function buildRenewalEmailHtml(username: string): string {
     </div>
     <h2 style="color: #111827; font-size: 20px; margin-bottom: 8px; text-align: center;">Subscription renewed</h2>
     <p style="color: #4b5563; font-size: 14px; line-height: 1.5; text-align: center; margin-bottom: 24px;">
-      Hi <strong>${username}</strong>, your subscription on <strong>mtdeployedapp.com</strong> has been automatically renewed. You can keep enjoying uninterrupted access to all your favorite movies.
+      Hi <strong>${username}</strong>, your subscription on <strong>housereel.netlify.app</strong> has been automatically renewed. You can keep enjoying uninterrupted access to all your favorite movies.
     </p>
     <p style="color: #9ca3af; font-size: 12px; line-height: 1.5;">
       If you'd like to manage or cancel auto-renewal, you can do so anytime from your account settings.
