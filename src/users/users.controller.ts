@@ -93,7 +93,7 @@ export class UsersController {
 
   // Superadmin
   @Delete(':userId')
-  @Roles(UserRole.SUPERADMIN)
+  @UseGuards(OwnershipGuard)
   remove(@Param('userId', ParseUUIDPipe) userId: string): Promise<Isuccess> {
     return this.usersService.remove(userId);
   }

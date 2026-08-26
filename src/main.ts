@@ -3,7 +3,6 @@ import { AppModule } from './app.module';
 import * as dotenv from "dotenv";
 import { validationConfig } from './startup/validationConfig';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { join } from 'path';
 import { envConfig } from './utils/env.config';
 import cookieParser from "cookie-parser"
 import { UsersService } from './users/users.service';
@@ -33,6 +32,6 @@ async function main() {
   let message = await userService.createSuperAdmin();
   console.log(message);
 
-  await app.listen(port, () => console.log(`Server is running on port ${port}`));
+  await app.listen(port, () => console.log(`Server is running`));
 }
 main();

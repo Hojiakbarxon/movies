@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Req, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PendingUser } from './entities/pending.user.entity';
 import { Repository } from 'typeorm';
@@ -12,7 +12,7 @@ import { User } from '../users/entities/user.entity';
 import { Token } from '../utils/Token';
 import { Profile } from '../users/entities/profile.entity';
 import { LoginDto } from './dto/login.dto';
-import { Response } from 'express';
+import type { Request, Response } from 'express';
 import { UsersService } from '../users/users.service';
 import { ForgotPasswordDto } from './dto/forgot.password.dto';
 import { ProcessingUser } from './entities/processing.user.entity';
@@ -135,15 +135,20 @@ export class AuthService {
 
         let user = await (await this.userService.findByEmailWithPassword(email)).data as User
 
-        if (!user) throw new BadRequestException("Email or Password is wrong!")
+        if (!user) {
+            res.clearCookie("refreshToken");
+            throw new BadRequestException("Email or Password is wrong!");
+        }
 
         let isMatch = await this.crypto.compare(password, user.password_hash);
 
-        if (!isMatch) throw new BadRequestException("Email or Password is wrong!")
+        if (!isMatch) {
+            res.clearCookie("refreshToken");
+            throw new BadRequestException("Email or Password is wrong!");
+        }
 
         let payload = {
-            id: user.id,
-            role: user.role
+            id: user.id
         };
 
         let authToken = await this.token.getAccessToken(payload);
@@ -232,6 +237,31 @@ export class AuthService {
             statusCode: 200,
             message: "Password has been updated, successfully",
             data: {}
+        }
+    }
+
+    async getAccessToken(@Req() req: Request): Promise<Isuccess> {
+        let refreshToken = req?.cookies?.refreshToken;
+        if (!refreshToken) throw new UnauthorizedException("Please sign in first.")
+
+        try {
+            let data = this.token.verifyRefreshToken(refreshToken) as User;
+
+            let payload = {
+                id: data.id,
+            };
+
+            let authToken = this.token.getAccessToken(payload);
+
+            return {
+                statusCode: 200,
+                message: "success",
+                data: {
+                    authToken
+                }
+            }
+        } catch (error) {
+            throw new UnauthorizedException("Something went wrong, please sign in again.")
         }
     }
 }

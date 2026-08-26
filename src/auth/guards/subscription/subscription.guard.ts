@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Observable } from 'rxjs';
-import { UserRole } from '../../../users/entities/user.entity';
+import { User, UserRole } from '../../../users/entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { SubscriptionStatus, UserSubscription } from '../../../subscriptions/entities/user-subscription.entity';
 import { Repository } from 'typeorm';
@@ -8,7 +8,8 @@ import { Repository } from 'typeorm';
 @Injectable()
 export class SubscriptionGuard implements CanActivate {
   constructor(
-    @InjectRepository(UserSubscription) private readonly userSubRepo: Repository<UserSubscription>
+    @InjectRepository(UserSubscription) private readonly userSubRepo: Repository<UserSubscription>,
+    @InjectRepository(User) private readonly userRepo: Repository<User>
   ) {
 
   }
@@ -16,12 +17,17 @@ export class SubscriptionGuard implements CanActivate {
     context: ExecutionContext,
   ): Promise<boolean> {
     const req = context.switchToHttp().getRequest();
-
     if (!req.user) {
       req.canWatch = false;
       return true
     }
-    if ([UserRole.SUPERADMIN, UserRole.ADMIN].includes(req.user.role)) {
+
+    const realUser = await this.userRepo.findOne({ where: { id: req.user.id } });
+    if (!realUser) {
+      req.canWatch = false;
+      return true
+    }
+    if ([UserRole.SUPERADMIN, UserRole.ADMIN].includes(realUser.role)) {
       req.canWatch = true;
       return true;
     }

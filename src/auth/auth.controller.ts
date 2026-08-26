@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { RegisterDto } from './dto/register.dto';
 import { Isuccess } from '../utils/success-response-interface';
 import { AuthService } from './auth.service';
@@ -59,4 +59,15 @@ export class AuthController {
     resetPassword(@Body() dto: ResetPasswordDto): Promise<Isuccess> {
         return this.authService.resetPassword(dto);
     };
+
+    @Throttle({
+        default: {
+            limit: 5,
+            ttl: 60_000
+        }
+    })
+    @Post('refresh')
+    getAccessToken(@Req() req: express.Request): Promise<Isuccess> {
+        return this.authService.getAccessToken(req)
+    }
 }

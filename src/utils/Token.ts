@@ -8,7 +8,6 @@ import { Injectable } from "@nestjs/common";
 export class Token {
     getAccessToken(payload: object): string {
         let secretKey = envConfig.token.access.key;
-        let accessTime = envConfig.token.access.time
         let accessToken = jwt.sign(payload, secretKey, {
             expiresIn: '1d'
         })
@@ -31,12 +30,12 @@ export class Token {
         return refreshToken
     };
 
-    verifyAccessToken(accessToken: string) {
+    verifyAccessToken(accessToken: string): string | jwt.JwtPayload {
         let secretKey = envConfig.token.access.key
         return jwt.verify(accessToken, secretKey);
     };
 
-    verifyRefreshToken(refreshToken: string) {
+    verifyRefreshToken(refreshToken: string): string | jwt.JwtPayload {
         let secretKey = envConfig.token.refresh.key;
         return jwt.verify(refreshToken, secretKey);
     };
