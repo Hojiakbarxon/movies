@@ -50,6 +50,7 @@ export class AuthService {
 
         let password_hash = await this.crypto.hash(password);
         let otp = generateOtp();
+        let hashedOtp = await this.crypto.hash(otp);
 
         let penUser = await this.penUserRepo.findOne({
             where: { email }
@@ -60,7 +61,7 @@ export class AuthService {
         if (penUser) {
             let mail = await this.mail.sendMail(email, otp);
             await this.penUserRepo.update({ id: penUser.id }, {
-                otp,
+                otp : hashedOtp,
                 password_hash,
                 expires_in
             })
@@ -80,7 +81,7 @@ export class AuthService {
             email,
             username,
             password_hash,
-            otp,
+            otp : hashedOtp,
             expires_in
         });
 
@@ -105,7 +106,8 @@ export class AuthService {
             throw new BadRequestException("OTP is expired, request a new one");
         };
 
-        if (otp !== penUser.otp) {
+        let checkOtp = await this.crypto.compare(otp, penUser.otp);
+        if (!checkOtp) {
             throw new ConflictException("OTP is expired or wrong")
         };
 
@@ -174,13 +176,14 @@ export class AuthService {
         });
 
         const otp = generateOtp();
+        let hashedOtp = await this.crypto.hash(otp);
         let expires_in = new Date(Date.now() + 5 * 60 * 1000);
 
         if (existedProcessingUser) {
             await this.mail.sendMail(email, otp)
             await this.proUserRepo.update({ id: existedProcessingUser.id }, {
                 email,
-                otp,
+                otp : hashedOtp,
                 expires_in
             });
 
@@ -196,7 +199,7 @@ export class AuthService {
         await this.mail.sendMail(email, otp)
         let processingUser = await this.proUserRepo.create({
             ...dto,
-            otp,
+            otp : hashedOtp,
             expires_in
         });
         await this.proUserRepo.save(processingUser);
@@ -219,8 +222,9 @@ export class AuthService {
         if (Date.now() > processingUser.expires_in.getTime()) {
             throw new BadRequestException("OTP is expired, request a new one");
         };
+        let checkOtp = await this.crypto.compare(otp, processingUser.otp);
 
-        if (otp !== processingUser.otp) throw new BadRequestException("OTP is wrong or expired");
+        if (!checkOtp) throw new BadRequestException("OTP is wrong or expired");
 
         if (password !== repeat_password) throw new BadRequestException("Password did not match");
 
