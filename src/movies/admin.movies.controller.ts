@@ -32,6 +32,7 @@ import { UserRole } from '../users/entities/user.entity';
 import { CreateMovieCastDto } from './dto/create-movie-cast.dto';
 import { TmdbService } from '../utils/TMDB.service';
 import { ConnectTmdbMovieDto } from './dto/connect-tmdb-movie.dto';
+import { AddMovieCastBulkDto } from './dto/add-movie-cast-bulk.dto';
 
 @Controller('admin')
 @UseGuards(AuthGuard, RoleGuard)
@@ -74,7 +75,7 @@ export class AdminMoviesController {
         return this.moviesService.getTmdbCast(id);
     }
 
-    
+
     @Get('movies')
     @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
     findAll(): Promise<Isuccess> {
@@ -111,6 +112,16 @@ export class AdminMoviesController {
     @HttpCode(200)
     remove(@Param('id', ParseUUIDPipe) id: string): Promise<Isuccess> {
         return this.moviesService.remove(id);
+    }
+
+
+    @Post('movies/:id/add-actors')
+    @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+    addActors(
+        @Param('id', ParseUUIDPipe) id: string,
+        @Body() dto: AddMovieCastBulkDto,
+    ): Promise<Isuccess> {
+        return this.moviesService.addActors(id, dto.actors);
     }
 
     @Post('movies/:id/add-actor')

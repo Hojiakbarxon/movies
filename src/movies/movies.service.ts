@@ -210,8 +210,8 @@ export class MoviesService {
         characterName: mcast.characterName,
         castOrder: mcast.castOrder,
         actor: {
-          id : mcast.actor.id,
-          tmdbId : mcast.actor.tmdbId,
+          id: mcast.actor.id,
+          tmdbId: mcast.actor.tmdbId,
           name: mcast.actor.name,
           profilePath: mcast.actor.profilePath
         }
@@ -229,7 +229,7 @@ export class MoviesService {
       rating: movie.rating,
       subscription_type: movie.subscription_type,
       view_count: movie.view_count,
-      tmdbId : movie.tmdbId,
+      tmdbId: movie.tmdbId,
       categories: movie.movie_categories.map((item) => item.category.name),
       files: allowed ? movie.files : { message: "Activate subscription plan to watch the movie" },
       actors,
@@ -505,10 +505,59 @@ export class MoviesService {
     return {
       statusCode: 200,
       message: "Actor added to the movie",
-      data : {
-        actorId : savedMovieCast.actor.id
+      data: {
+        actorId: savedMovieCast.actor.id
       }
     }
+  }
+
+
+  // Add actors at once
+  async addActors(movieId: string, items: CreateMovieCastDto[]): Promise<Isuccess> {
+    let movie = await this.conflict.mustExist({ id: movieId }, this.movieRepo, 'Movie', "ID") as Movie;
+
+    let results: { tmdbId: number; status: 'added' | 'skipped' | 'failed'; actorId?: string; reason?: string }[] = [];
+
+    for (const item of items) {
+      const { tmdbId, characterName, castOrder } = item;
+      try {
+        let actor = await this.actorRepo.findOne({ where: { tmdbId } });
+
+        if (!actor) {
+          const actorFromTmdb = await this.tmdbService.getPerson(tmdbId);
+          
+          const { adult, biography, birthday, deathday, gender, name, placeOfBirth, profilePath } = actorFromTmdb;
+
+          actor = this.actorRepo.create({
+            adult, biography, birthday, deathday, gender, name, placeOfBirth, profilePath, tmdbId,
+          });
+          await this.actorRepo.save(actor);
+        }
+
+        const existed = await this.movieCastRepo.findOne({
+          where: { movie: { id: movieId }, actor: { id: actor.id } },
+          relations: { movie: true, actor: true },
+        });
+
+        if (existed) {
+          results.push({ tmdbId, status: 'skipped', reason: 'Actor already in this movie' });
+          continue;
+        }
+
+        const movieCast = this.movieCastRepo.create({ actor, movie, castOrder, characterName });
+        const saved = await this.movieCastRepo.save(movieCast);
+
+        results.push({ tmdbId, status: 'added', actorId: saved.actor.id });
+      } catch (err) {
+        results.push({ tmdbId, status: 'failed', reason: 'Unknown error' });
+      }
+    }
+
+    return {
+      statusCode: 200,
+      message: 'Bulk actor add complete',
+      data: { results },
+    };
   }
 
 
