@@ -15,6 +15,9 @@ import { Payment } from '../payments/entities/payment.entity';
 import { UserSubscription } from '../subscriptions/entities/user-subscription.entity';
 import { AdminMoviesController } from './admin.movies.controller';
 import { R2Service } from '../utils/r2.service';
+import { MovieCast } from './entities/movie-cast.entity';
+import { Actor } from '../users/entities/actors.entity';
+import { TmdbService } from '../utils/TMDB.service';
 
 @Module({
   imports : [
@@ -27,10 +30,12 @@ import { R2Service } from '../utils/r2.service';
       Favourites,
       Reviews,
       Payment,
-      UserSubscription
+      UserSubscription,
+      MovieCast,
+      Actor
     ])
   ],
   controllers: [MoviesController, AdminMoviesController],
-  providers: [MoviesService, Conflict, Token, R2Service],
+  providers: [MoviesService, Conflict, Token, R2Service, TmdbService],
 })
 export class MoviesModule {}

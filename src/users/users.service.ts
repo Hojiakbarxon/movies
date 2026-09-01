@@ -17,6 +17,8 @@ import { join } from 'path';
 import { unlink } from 'fs/promises';
 import { envConfig } from '../utils/env.config';
 import { R2Service } from '../utils/r2.service';
+import { CreateActorDto } from './dto/create-actor-dto';
+import { Actor } from './entities/actors.entity';
 
 @Injectable()
 export class UsersService {
@@ -25,6 +27,8 @@ export class UsersService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(Profile)
     private readonly profileRepo: Repository<Profile>,
+    @InjectRepository(Actor)
+    private readonly actorRepo: Repository<Actor>,
     private readonly crypto: Crypto,
     private readonly conflict: Conflict,
     private readonly r2Service: R2Service
@@ -216,6 +220,40 @@ export class UsersService {
       statusCode: 200,
       message: "User has been deleted successfully",
       data: {}
+    }
+  }
+
+  async createActor(data: CreateActorDto): Promise<Isuccess> {
+    let actor = this.actorRepo.create(data);
+    let savedActor = await this.actorRepo.save(actor);
+    return {
+      statusCode: 201,
+      message: "success",
+      data: { savedActor }
+    }
+  }
+
+  async getActor(id: string): Promise<Isuccess> {
+    let actor = await this.actorRepo.findOne({
+      where: { id },
+      select: {
+        name: true,
+        adult: true,
+        biography: true,
+        birthday: true,
+        deathday: true,
+        gender: true,
+        placeOfBirth: true,
+        profilePath : true
+      }
+    });
+
+    if (!actor) throw new NotFoundException("Actor is not found")
+
+    return {
+      statusCode: 200,
+      message: "Actor",
+      data: actor
     }
   }
 }

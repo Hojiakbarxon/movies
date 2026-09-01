@@ -29,6 +29,8 @@ import { WinstonModule } from 'nest-winston';
 import { winstonConfig } from './log/winston.config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { Actor } from './users/entities/actors.entity';
+import { MovieCast } from './movies/entities/movie-cast.entity';
 
 @Module({
   imports: [
@@ -48,10 +50,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
       type: "postgres",
       url: String(process.env.DB_URL),
       synchronize: true,
-      ssl: {
-        rejectUnauthorized: false
-      },
-      entities: [User, Profile, SubscriptionPlan, UserSubscription, Payment, Category, Movie, MovieCategory, MovieFile, PendingUser, ProcessingUser, Favourites, Reviews]
+      entities: [User, Profile, SubscriptionPlan, UserSubscription, Payment, Category, Movie, MovieCategory, MovieFile, PendingUser, ProcessingUser, Favourites, Reviews, Actor, MovieCast]
     }),
     UsersModule,
     SubscriptionsModule,
@@ -70,8 +69,8 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
       useClass: ExceptionFilterFilter
     },
     {
-      provide : APP_GUARD,
-      useClass : ThrottlerGuard
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard
     }
   ],
 })

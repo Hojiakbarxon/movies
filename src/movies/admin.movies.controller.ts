@@ -29,11 +29,17 @@ import { OwnershipGuard } from '../auth/guards/ownership/ownership.guard';
 import { RoleGuard } from '../auth/guards/role/role.guard';
 import { Roles } from '../auth/decorators/role.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { CreateMovieCastDto } from './dto/create-movie-cast.dto';
+import { TmdbService } from '../utils/TMDB.service';
+import { ConnectTmdbMovieDto } from './dto/connect-tmdb-movie.dto';
 
 @Controller('admin')
 @UseGuards(AuthGuard, RoleGuard)
 export class AdminMoviesController {
-    constructor(private readonly moviesService: MoviesService) { }
+    constructor(
+        private readonly moviesService: MoviesService,
+        private readonly tmdbService: TmdbService
+    ) { }
 
     @Post('movies')
     @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
@@ -52,12 +58,38 @@ export class AdminMoviesController {
         return this.moviesService.create(dto, req.user.id, poster);
     }
 
+    @Get('movies/tmdb/search')
+    @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
+    searchTmdbMovies(
+        @Query('query') query: string,
+    ) {
+        return this.tmdbService.searchMovies(query);
+    }
+
+    @Get('movies/:id/tmdb/cast')
+    @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
+    getTmdbCast(
+        @Param('id', ParseUUIDPipe) id: string,
+    ) {
+        return this.moviesService.getTmdbCast(id);
+    }
+
+    
     @Get('movies')
     @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
     findAll(): Promise<Isuccess> {
         return this.moviesService.findAllForAdmin();
     }
 
+
+    @Patch('movies/:id/tmdb')
+    @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
+    connectTmdbMovie(
+        @Param('id', ParseUUIDPipe) id: string,
+        @Body() dto: ConnectTmdbMovieDto,
+    ): Promise<Isuccess> {
+        return this.moviesService.connectTmdbMovie(id, dto.tmdbId);
+    }
 
     @Patch('movies/:id')
     @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
@@ -79,6 +111,15 @@ export class AdminMoviesController {
     @HttpCode(200)
     remove(@Param('id', ParseUUIDPipe) id: string): Promise<Isuccess> {
         return this.moviesService.remove(id);
+    }
+
+    @Post('movies/:id/add-actor')
+    @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+    addActor(
+        @Param('id', ParseUUIDPipe) id: string,
+        @Body() dto: CreateMovieCastDto
+    ): Promise<Isuccess> {
+        return this.moviesService.addActor(id, dto)
     }
 
     @Post('movies/:id/files')

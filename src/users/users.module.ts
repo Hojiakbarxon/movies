@@ -13,6 +13,8 @@ import { Reviews } from '../movies/entities/reviews.entity';
 import { Payment } from '../payments/entities/payment.entity';
 import { UserSubscription } from '../subscriptions/entities/user-subscription.entity';
 import { R2Service } from '../utils/r2.service';
+import { Actor } from './entities/actors.entity';
+import { MovieCast } from '../movies/entities/movie-cast.entity';
 
 @Module({
   imports: [
@@ -23,7 +25,9 @@ import { R2Service } from '../utils/r2.service';
       Favourites,
       Reviews,
       Payment,
-      UserSubscription
+      UserSubscription,
+      Actor,
+      MovieCast
     ])
   ],
   controllers: [UsersController],
