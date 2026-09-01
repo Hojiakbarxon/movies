@@ -2,16 +2,15 @@ import { Type } from 'class-transformer';
 import {
     IsInt,
     IsNotEmpty,
-    IsOptional,
     IsString,
-    IsUUID,
     Min,
 } from 'class-validator';
 
 export class CreateMovieCastDto {
-    @IsUUID()
+    @IsInt()
     @IsNotEmpty()
-    actorId: string;
+    @Type(() => Number)
+    tmdbId: number;
 
     @IsString()
     @IsNotEmpty()

@@ -210,6 +210,8 @@ export class MoviesService {
         characterName: mcast.characterName,
         castOrder: mcast.castOrder,
         actor: {
+          id : mcast.actor.id,
+          tmdbId : mcast.actor.tmdbId,
           name: mcast.actor.name,
           profilePath: mcast.actor.profilePath
         }
@@ -227,6 +229,7 @@ export class MoviesService {
       rating: movie.rating,
       subscription_type: movie.subscription_type,
       view_count: movie.view_count,
+      tmdbId : movie.tmdbId,
       categories: movie.movie_categories.map((item) => item.category.name),
       files: allowed ? movie.files : { message: "Activate subscription plan to watch the movie" },
       actors,
@@ -445,10 +448,33 @@ export class MoviesService {
 
   // Add an actor
   async addActor(movieId: string, data: CreateMovieCastDto): Promise<Isuccess> {
-    let { actorId, characterName, castOrder } = data;
+    let { tmdbId, characterName, castOrder } = data;
     let movie = await this.conflict.mustExist({ id: movieId }, this.movieRepo, 'Movie', "ID") as Movie;
 
-    let actor = await this.conflict.mustExist({ id: actorId }, this.actorRepo, 'Actor', 'ID') as Actor;
+    let actor = await this.actorRepo.findOne({
+      where: {
+        tmdbId
+      }
+    });
+
+    if (!actor) {
+      const actorFromTmdb = await this.tmdbService.getPerson(tmdbId);
+      let { adult, biography, birthday, deathday, gender, id, name, placeOfBirth, profilePath } = actorFromTmdb;
+
+      actor = await this.actorRepo.create({
+        adult,
+        biography,
+        birthday,
+        deathday,
+        gender,
+        name,
+        placeOfBirth,
+        profilePath,
+        tmdbId
+      })
+
+      await this.actorRepo.save(actor)
+    }
 
     let existed = await this.movieCastRepo.findOne({
       where: {
@@ -456,7 +482,7 @@ export class MoviesService {
           id: movieId
         },
         actor: {
-          id: actorId
+          id: actor?.id
         }
       },
       relations: {
@@ -473,12 +499,15 @@ export class MoviesService {
       castOrder,
       characterName
     });
+
     let savedMovieCast = await this.movieCastRepo.save(movieCast);
 
     return {
       statusCode: 200,
       message: "Actor added to the movie",
-      data
+      data : {
+        actorId : savedMovieCast.actor.id
+      }
     }
   }
 
