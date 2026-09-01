@@ -24,6 +24,7 @@ import { Roles } from '../auth/decorators/role.decorator';
 import { UserRole } from './entities/user.entity';
 import { RoleGuard } from '../auth/guards/role/role.guard';
 import { OwnershipGuard } from '../auth/guards/ownership/ownership.guard';
+import { CreateActorDto } from './dto/create-actor-dto';
 
 @Controller('users')
 @UseGuards(AuthGuard, RoleGuard)
@@ -96,5 +97,17 @@ export class UsersController {
   @UseGuards(OwnershipGuard)
   remove(@Param('userId', ParseUUIDPipe) userId: string): Promise<Isuccess> {
     return this.usersService.remove(userId);
+  }
+
+  @Post('/new-actor')
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  addActor(@Body() dto: CreateActorDto): Promise<Isuccess> {
+    return this.usersService.createActor(dto);
+  }
+
+  @Get('actors/:actorId')
+  getActor(@Param('actorId', ParseUUIDPipe) actorId: string): Promise<Isuccess> {
+    return this.usersService.getActor(actorId)
   }
 }

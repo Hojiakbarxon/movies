@@ -11,14 +11,16 @@ import { Isuccess } from '../utils/success-response-interface';
 import { Conflict } from '../utils/conflict';
 import { MovieCategory } from './entities/movie-category.entity';
 import { User } from '../users/entities/user.entity';
-import { join } from 'path';
-import { unlink } from 'fs/promises';
 import { UpdateMovieFileDto } from './dto/update-movie-file.dto';
 import { UpdateMovieDto } from './dto/update-movie.dto';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { Reviews } from './entities/reviews.entity';
 import { R2Service } from '../utils/r2.service';
 import { reviewItems } from '../utils/Custom Types/review-item.type';
+import { MovieCast } from './entities/movie-cast.entity';
+import { CreateMovieCastDto } from './dto/create-movie-cast.dto';
+import { Actor } from '../users/entities/actors.entity';
+import { TmdbService } from '../utils/TMDB.service';
 
 @Injectable()
 export class MoviesService {
@@ -33,10 +35,15 @@ export class MoviesService {
     private readonly movieCategoryRepo: Repository<MovieCategory>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(MovieCast)
+    private readonly movieCastRepo: Repository<MovieCast>,
+    @InjectRepository(Actor)
+    private readonly actorRepo: Repository<Actor>,
     @InjectRepository(Reviews)
     private readonly reviewRepo: Repository<Reviews>,
     private readonly conflict: Conflict,
-    private readonly r2Service: R2Service
+    private readonly r2Service: R2Service,
+    private readonly tmdbService: TmdbService
   ) { }
 
   async create(
@@ -163,6 +170,9 @@ export class MoviesService {
         files: true,
         reviews: {
           user: true
+        },
+        movieCasts: {
+          actor: true
         }
       },
     }) as Movie;
@@ -192,7 +202,22 @@ export class MoviesService {
     let average_rating: number = total_review !== 0 ? sumOfRating / total_review : 0;
 
     const allowed = movie.subscription_type === 'free' || canWatch;
+    let actors: object[] = [];
+    let movieCast: MovieCast[] = movie.movieCasts.sort((a, b) => a.castOrder - b.castOrder);
 
+    movieCast.forEach((mcast) => {
+      let actor = {
+        characterName: mcast.characterName,
+        castOrder: mcast.castOrder,
+        actor: {
+          id : mcast.actor.id,
+          tmdbId : mcast.actor.tmdbId,
+          name: mcast.actor.name,
+          profilePath: mcast.actor.profilePath
+        }
+      };
+      actors.push(actor);
+    })
     const data = {
       id: movie?.id,
       title: movie?.title,
@@ -204,8 +229,10 @@ export class MoviesService {
       rating: movie.rating,
       subscription_type: movie.subscription_type,
       view_count: movie.view_count,
+      tmdbId : movie.tmdbId,
       categories: movie.movie_categories.map((item) => item.category.name),
       files: allowed ? movie.files : { message: "Activate subscription plan to watch the movie" },
+      actors,
       reviews: {
         average_rating,
         count: total_review,
@@ -416,5 +443,104 @@ export class MoviesService {
       message: "Review deleted successfully",
       data: {}
     }
+  }
+
+
+  // Add an actor
+  async addActor(movieId: string, data: CreateMovieCastDto): Promise<Isuccess> {
+    let { tmdbId, characterName, castOrder } = data;
+    let movie = await this.conflict.mustExist({ id: movieId }, this.movieRepo, 'Movie', "ID") as Movie;
+
+    let actor = await this.actorRepo.findOne({
+      where: {
+        tmdbId
+      }
+    });
+
+    if (!actor) {
+      const actorFromTmdb = await this.tmdbService.getPerson(tmdbId);
+      let { adult, biography, birthday, deathday, gender, id, name, placeOfBirth, profilePath } = actorFromTmdb;
+
+      actor = await this.actorRepo.create({
+        adult,
+        biography,
+        birthday,
+        deathday,
+        gender,
+        name,
+        placeOfBirth,
+        profilePath,
+        tmdbId
+      })
+
+      await this.actorRepo.save(actor)
+    }
+
+    let existed = await this.movieCastRepo.findOne({
+      where: {
+        movie: {
+          id: movieId
+        },
+        actor: {
+          id: actor?.id
+        }
+      },
+      relations: {
+        movie: true,
+        actor: true
+      }
+    });
+
+    if (existed) throw new BadRequestException("Actor already exists in this movie");
+
+    let movieCast = this.movieCastRepo.create({
+      actor,
+      movie,
+      castOrder,
+      characterName
+    });
+
+    let savedMovieCast = await this.movieCastRepo.save(movieCast);
+
+    return {
+      statusCode: 200,
+      message: "Actor added to the movie",
+      data : {
+        actorId : savedMovieCast.actor.id
+      }
+    }
+  }
+
+
+  // Connect movie to TMDB
+  async connectTmdbMovie(
+    movieId: string,
+    tmdbId: number,
+  ): Promise<Isuccess> {
+
+    await this.conflict.mustExist({ id: movieId }, this.movieRepo, 'Movie', 'ID');
+
+    await this.movieRepo.update({ id: movieId }, {
+      tmdbId
+    })
+
+    return {
+      statusCode: 200,
+      message: 'Movie successfully connected to TMDB',
+      data: {}
+    };
+  }
+
+  async getTmdbCast(movieId: string) {
+
+    const movie = await this.conflict.mustExist({ id: movieId }, this.movieRepo, 'MOvie', 'ID') as Movie;
+
+    if (!movie.tmdbId) {
+      throw new BadRequestException(
+        'Movie is not connected to TMDB',
+      );
+    }
+
+    return this.tmdbService.getMovieCast(movie.tmdbId);
   }
 }
