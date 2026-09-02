@@ -4,12 +4,15 @@ import { User, UserRole } from '../../../users/entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { SubscriptionStatus, UserSubscription } from '../../../subscriptions/entities/user-subscription.entity';
 import { Repository } from 'typeorm';
+import { AuthGuard } from '../auth/auth.guard';
+import { Token } from '../../../utils/Token';
 
 @Injectable()
 export class SubscriptionGuard implements CanActivate {
   constructor(
     @InjectRepository(UserSubscription) private readonly userSubRepo: Repository<UserSubscription>,
-    @InjectRepository(User) private readonly userRepo: Repository<User>
+    @InjectRepository(User) private readonly userRepo: Repository<User>,
+    private readonly token : Token
   ) {
 
   }
@@ -17,10 +20,37 @@ export class SubscriptionGuard implements CanActivate {
     context: ExecutionContext,
   ): Promise<boolean> {
     const req = context.switchToHttp().getRequest();
-    if (!req.user) {
+    const auth = req.headers.authorization;
+
+    if (!auth) {
       req.canWatch = false;
-      return true
+      return true;
     }
+
+    const bearer = auth.split(" ")[0];
+    const token = auth.split(" ")[1];
+
+    if (bearer !== "Bearer" || !token) {
+      req.canWatch = false;
+      return true;
+    }
+
+
+    try {
+      let data = this.token.verifyAccessToken(token) as any;
+      let originalUser = await this.userRepo.findOne({ where: { id: data?.id } })
+
+      if (!originalUser) {
+        req.canWatch = false;
+        return true;
+      }
+
+      req['user'] = data;
+    } catch (error) {
+      req.canWatch = false;
+      return true;
+    }
+
 
     const realUser = await this.userRepo.findOne({ where: { id: req.user.id } });
     if (!realUser) {

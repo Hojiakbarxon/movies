@@ -18,6 +18,7 @@ import { R2Service } from '../utils/r2.service';
 import { MovieCast } from './entities/movie-cast.entity';
 import { Actor } from '../users/entities/actors.entity';
 import { TmdbService } from '../utils/TMDB.service';
+import { AuthGuard } from '../auth/guards/auth/auth.guard';
 
 @Module({
   imports : [
@@ -36,6 +37,6 @@ import { TmdbService } from '../utils/TMDB.service';
     ])
   ],
   controllers: [MoviesController, AdminMoviesController],
-  providers: [MoviesService, Conflict, Token, R2Service, TmdbService],
+  providers: [MoviesService, Conflict, Token, R2Service, TmdbService, AuthGuard],
 })
 export class MoviesModule {}
