@@ -60,7 +60,7 @@ export class MoviesController {
   }
 
   @Get(':slug')
-  @UseGuards(AuthGuard, SubscriptionGuard)
+  @UseGuards(SubscriptionGuard)
   findBySlug(@Param('slug') slug: string, @Req() req): Promise<Isuccess> {
     return this.moviesService.findBySlug(slug, req.canWatch);
   }

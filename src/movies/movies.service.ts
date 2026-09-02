@@ -189,6 +189,7 @@ export class MoviesService {
         id: review.id,
         user: {
           id: review.user.id,
+          avatar_url : review.user.avatar_url,
           username: review.user.username,
         },
         rating: review.rating,
@@ -407,6 +408,7 @@ export class MoviesService {
       id: savedReview.id,
       user: {
         id: user.id,
+        avatar_url : user.avatar_url,
         username: user.username
       },
       movie_id: movie.id,

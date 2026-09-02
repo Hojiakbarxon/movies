@@ -27,12 +27,12 @@ import { OwnershipGuard } from '../auth/guards/ownership/ownership.guard';
 import { CreateActorDto } from './dto/create-actor-dto';
 
 @Controller('users')
-@UseGuards(AuthGuard, RoleGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) { }
 
   // Superadmin admin
   @Post()
+  @UseGuards(AuthGuard, RoleGuard)
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @UseInterceptors(FileInterceptor("avatar", avatarMulterOptions))
   create(@Body() dto: CreateUserDto, @UploadedFile() avatar?: Express.Multer.File): Promise<Isuccess> {
@@ -40,6 +40,7 @@ export class UsersController {
   }
 
   @Post("admin")
+  @UseGuards(AuthGuard, RoleGuard)
   @Roles(UserRole.SUPERADMIN)
   @UseInterceptors(FileInterceptor("avatar", avatarMulterOptions))
   createAdmin(
@@ -51,6 +52,7 @@ export class UsersController {
 
   // Admin, Superadmin
   @Get()
+  @UseGuards(AuthGuard, RoleGuard)
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   findAll(): Promise<Isuccess> {
     return this.usersService.findAll();
@@ -58,6 +60,7 @@ export class UsersController {
 
   // Superadmin
   @Get('email/:email')
+  @UseGuards(AuthGuard, RoleGuard)
   @Roles(UserRole.SUPERADMIN)
   findByEmailWithPassword(@Param('email') email: string): Promise<Isuccess> {
     return this.usersService.findByEmailWithPassword(email);
@@ -65,14 +68,14 @@ export class UsersController {
 
   // Admin, Superadmin, Owner
   @Get(':userId')
-  @UseGuards(OwnershipGuard)
+  @UseGuards(AuthGuard, RoleGuard, OwnershipGuard)
   findOne(@Param('userId', ParseUUIDPipe) userId: string): Promise<Isuccess> {
     return this.usersService.findOne(userId);
   };
 
   //Superadmin, Admin, Owner
   @Patch(':userId')
-  @UseGuards(OwnershipGuard)
+  @UseGuards(AuthGuard, RoleGuard,OwnershipGuard)
   @UseInterceptors(FileInterceptor("avatar", avatarMulterOptions))
   update(
     @Param('userId', ParseUUIDPipe) userId: string,
@@ -84,7 +87,7 @@ export class UsersController {
 
   //Superadmin, Admin, Owner
   @Patch(':userId/profile')
-  @UseGuards(OwnershipGuard)
+  @UseGuards(AuthGuard, RoleGuard, OwnershipGuard)
   updateProfile(
     @Param('userId', ParseUUIDPipe) userId: string,
     @Body() dto: UpdateProfileDto,
@@ -92,9 +95,8 @@ export class UsersController {
     return this.usersService.updateProfile(userId, dto);
   }
 
-  // Superadmin
   @Delete(':userId')
-  @UseGuards(OwnershipGuard)
+  @UseGuards(AuthGuard, RoleGuard, OwnershipGuard)
   remove(@Param('userId', ParseUUIDPipe) userId: string): Promise<Isuccess> {
     return this.usersService.remove(userId);
   }
