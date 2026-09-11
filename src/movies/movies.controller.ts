@@ -59,10 +59,17 @@ export class MoviesController {
     );
   }
 
+
   @Get(':slug')
   @UseGuards(SubscriptionGuard)
   findBySlug(@Param('slug') slug: string, @Req() req): Promise<Isuccess> {
     return this.moviesService.findBySlug(slug, req.canWatch);
+  }
+
+  @Get('suggestions/list')
+  getSuggestion(@Query('ids') ids?: string): Promise<Isuccess> {
+    const movieIds = ids ? ids.split(',') : [];
+    return this.moviesService.getSuggestion(movieIds);
   }
 
   @Delete(":movie_id/reviews/:review_id")
@@ -74,14 +81,6 @@ export class MoviesController {
   ): Promise<Isuccess> {
     return this.moviesService.deleteReview(req.user.id, movie_id, review_id);
   }
-  
-  private parseCategoryIds(raw: any): string[] {
-    if (Array.isArray(raw)) return raw;
-    try {
-      return JSON.parse(raw);
-    } catch {
-      throw new BadRequestException('category_ids must be a valid JSON array');
-    }
-  }
+
 }
 

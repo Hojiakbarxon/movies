@@ -49,7 +49,7 @@ import { MovieCast } from './movies/entities/movie-cast.entity';
     TypeOrmModule.forRoot({
       type: "postgres",
       url: String(process.env.DB_URL),
-      synchronize : true,
+      synchronize : false,
       ssl: {
         rejectUnauthorized: false
       },

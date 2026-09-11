@@ -1,12 +1,20 @@
 import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
-import { VideoQuality } from '../entities/movie-file.entity';
+import { SourceType, VideoQuality } from '../entities/movie-file.entity';
 
 export class CreateMovieFileDto {
-  @IsNotEmpty()
   @IsEnum(VideoQuality)
+  @IsNotEmpty()
   quality: VideoQuality;
 
-  @IsOptional()
   @IsString()
+  @IsOptional()
   language?: string;
+
+  @IsEnum(SourceType)
+  @IsNotEmpty()
+  source_type: SourceType;
+
+  @IsString()
+  @IsOptional()
+  external_url: string
 }

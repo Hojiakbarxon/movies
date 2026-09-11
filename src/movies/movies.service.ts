@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import slugify from 'slugify';
 import { Movie } from './entities/movie.entity';
-import { MovieFile } from './entities/movie-file.entity';
+import { MovieFile, SourceType } from './entities/movie-file.entity';
 import { Category } from '../categories/entities/category.entity';
 import { CreateMovieDto } from './dto/create-movie.dto';
 import { CreateMovieFileDto } from './dto/create-movie-file.dto';
@@ -21,6 +21,8 @@ import { MovieCast } from './entities/movie-cast.entity';
 import { CreateMovieCastDto } from './dto/create-movie-cast.dto';
 import { Actor } from '../users/entities/actors.entity';
 import { TmdbService } from '../utils/TMDB.service';
+import { UUIDTypes } from 'uuid';
+import { isUUID } from 'class-validator';
 
 @Injectable()
 export class MoviesService {
@@ -189,7 +191,7 @@ export class MoviesService {
         id: review.id,
         user: {
           id: review.user.id,
-          avatar_url : review.user.avatar_url,
+          avatar_url: review.user.avatar_url,
           username: review.user.username,
         },
         rating: review.rating,
@@ -323,7 +325,7 @@ export class MoviesService {
     };
   }
 
-  // --- Movie files ---
+  // --- Movie files/urls ---
 
   async addFile(
     movieId: string,
@@ -332,21 +334,32 @@ export class MoviesService {
   ): Promise<Isuccess> {
     const movie = await this.conflict.mustExist({ id: movieId }, this.movieRepo, 'Movie', 'ID') as Movie;
 
-    if (!file) throw new BadRequestException('Video file is required');
+    let { external_url, quality, source_type, language } = dto;
+    let file_url: string | undefined = undefined;
 
+    if (source_type === SourceType.uploaded) {
+      if (external_url) throw new BadRequestException("No need for external url");
+      if (!file) throw new BadRequestException('Video file is required');
+      file_url = await this.r2Service.upload(file, 'movies');
+    }
+    if (source_type === SourceType.external) {
+      if (file) throw new BadRequestException("No need for file upload")
+      if (!external_url) throw new BadRequestException("External url is required");
+    };
     const movieFile = this.movieFileRepo.create({
       movie,
-      file_url: await this.r2Service.upload(file, 'movies'),
-      quality: dto.quality,
-      language: dto.language ?? 'uz',
+      external_url,
+      file_url,
+      quality,
+      language: language ?? 'uz',
+      source_type
     });
-
     const saved = await this.movieFileRepo.save(movieFile);
 
     return {
       statusCode: 201,
       message: 'Movie file has been uploaded successfully',
-      data: saved,
+      data: saved
     };
   }
 
@@ -408,7 +421,7 @@ export class MoviesService {
       id: savedReview.id,
       user: {
         id: user.id,
-        avatar_url : user.avatar_url,
+        avatar_url: user.avatar_url,
         username: user.username
       },
       movie_id: movie.id,
@@ -527,7 +540,7 @@ export class MoviesService {
 
         if (!actor) {
           const actorFromTmdb = await this.tmdbService.getPerson(tmdbId);
-          
+
           const { adult, biography, birthday, deathday, gender, name, placeOfBirth, profilePath } = actorFromTmdb;
 
           actor = this.actorRepo.create({
@@ -593,5 +606,31 @@ export class MoviesService {
     }
 
     return this.tmdbService.getMovieCast(movie.tmdbId);
+  };
+
+  // Suggestion list
+  async getSuggestion(movieIds: string[]): Promise<Isuccess> {
+    let suggestedMovies: Partial<Movie>[] = [];
+    for (let id of movieIds) {
+      if (!isUUID(id)) throw new BadRequestException("Invalid movie id.");
+      let movie = await this.movieRepo.findOne({
+        where: { id },
+        select: {
+          id: true,
+          title: true,
+          release_year: true,
+          poster_url: true,
+          subscription_type: true,
+          slug : true
+        }
+      });
+      if (!movie) throw new NotFoundException(`Movie with this ${id} is not found`);
+      suggestedMovies.push(movie);
+    }
+    return {
+      statusCode: 200,
+      message: "Suggested movies before Spiderman: Brand New Day",
+      data: suggestedMovies
+    }
   }
 }
