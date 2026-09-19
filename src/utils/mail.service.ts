@@ -2,66 +2,85 @@ import { Injectable } from "@nestjs/common";
 
 @Injectable()
 export class MailService {
-    async sendMail(recipientEmail: string, message: string): Promise<void> {
-        try {
-            const response = await fetch('https://api.resend.com/emails', {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    from: 'Movies <noreply@reelhouse.space>',
-                    to: recipientEmail,
-                    subject: 'Your verification code',
-                    html: buildOtpEmailHtml(message),
-                }),
-            });
-            
-            const data = await response.json();
-            
-            if (!response.ok) {
-                console.error('Resend API error:', data);
-                throw new Error(`Failed to send email: ${data.message || 'unknown error'}`);
-            }
-            
-        } catch (error) {
-            console.error('sendMail failed:', error);
-            throw error;
-        }
+  private readonly mailtrapEndpoint = 'https://send.api.mailtrap.io/api/send';
+
+  async sendMail(recipientEmail: string, message: string): Promise<void> {
+    try {
+      const response = await fetch(this.mailtrapEndpoint, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.MAILTRAP_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: {
+            email: 'noreply@reelhouse.space',
+            name: 'Movies',
+          },
+          to: [
+            {
+              email: recipientEmail,
+            },
+          ],
+          subject: 'Your verification code',
+          html: buildOtpEmailHtml(message),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('Mailtrap API error:', data);
+        throw new Error(
+          `Failed to send email: ${data.errors ? data.errors.join(', ') : 'unknown error'}`,
+        );
+      }
+    } catch (error) {
+      console.error('sendMail failed:', error);
+      throw error;
     }
-    
-    async sendRenewalSummary(to: string, userName: string): Promise<void> {
-        try {
-            const response = await fetch('https://api.resend.com/emails', {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    from: 'Movies <renewal@reelhouse.space>',
-                    to,
-                    subject: "Subscription Renewal alerts",
-                    html: buildRenewalEmailHtml(userName),
-                }),
-            });
-            
-            const data = await response.json();
-            
-            if (!response.ok) {
-                console.error('Resend API error:', data);
-                throw new Error(`Failed to send email: ${data.message || 'unknown error'}`);
-            }
-            
-        } catch (error) {
-            console.error('sendMail failed:', error);
-        }
+  }
+
+  async sendRenewalSummary(to: string, userName: string): Promise<void> {
+    try {
+      const response = await fetch(this.mailtrapEndpoint, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.MAILTRAP_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: {
+            email: 'renewal@reelhouse.space',
+            name: 'Movies',
+          },
+          to: [
+            {
+              email: to,
+            },
+          ],
+          subject: 'Subscription Renewal alerts',
+          html: buildRenewalEmailHtml(userName),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('Mailtrap API error:', data);
+        throw new Error(
+          `Failed to send email: ${data.errors ? data.errors.join(', ') : 'unknown error'}`,
+        );
+      }
+    } catch (error) {
+      console.error('sendRenewalSummary failed:', error);
+      throw error;
     }
+  }
 }
 
 function buildOtpEmailHtml(otp: string): string {
-    return `
+  return `
   <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background-color: #ffffff; border: 1px solid #e5e5e5; border-radius: 8px;">
     <h2 style="color: #111827; font-size: 20px; margin-bottom: 8px;">Verify your email</h2>
     <p style="color: #4b5563; font-size: 14px; line-height: 1.5; margin-bottom: 24px;">
@@ -79,10 +98,10 @@ function buildOtpEmailHtml(otp: string): string {
     </p>
   </div>
   `;
-};
+}
 
 function buildRenewalEmailHtml(username: string): string {
-    return `
+  return `
   <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background-color: #ffffff; border: 1px solid #e5e5e5; border-radius: 8px;">
     <div style="text-align: center; margin-bottom: 16px;">
       <span style="font-size: 32px;">✅</span>
