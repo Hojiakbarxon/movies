@@ -127,41 +127,81 @@ export class MoviesService {
     };
   }
 
-  async findAllForAdmin(): Promise<Isuccess> {
-    let movies = await this.movieRepo.find({
-      relations: {
-        reviews: true,
-        created_by: true
-      }
-    });
+  async findAllForAdmin(
+    page = 1,
+    limit = 10,
+    search?: string,
+    subscription_type?: string,
+    sortBy: string = 'created_at',
+    sortOrder: 'ASC' | 'DESC' = 'DESC',
+  ): Promise<Isuccess> {
+    const qb = this.movieRepo
+      .createQueryBuilder('movie')
+      .leftJoin('movie.reviews', 'review')
+      .leftJoin('movie.created_by', 'created_by')
+      .leftJoin('movie.movie_categories', 'movie_category')
+      .leftJoin('movie_category.category', 'category')
+      .select([
+        'movie.id AS id',
+        'movie.title AS title',
+        'movie.slug AS slug',
+        'movie.release_year AS release_year',
+        'movie.subscription_type AS subscription_type',
+        'movie.view_count AS view_count',
+        'movie.created_at AS created_at',
+        'created_by.username AS created_by',
+      ])
+      .addSelect('COUNT(DISTINCT review.id)', 'review_count')
+      .groupBy('movie.id')
+      .addGroupBy('created_by.id');
 
-    let arrayOfMovies: object[] = [];
+    // Filters
+    if (search) {
+      qb.andWhere('movie.title ILIKE :search', { search: `%${search}%` });
+    }
+    if (subscription_type) {
+      qb.andWhere('movie.subscription_type = :subscription_type', { subscription_type });
+    }
 
-    movies.forEach((movie) => {
-      let film = {
-        id: movie.id,
-        title: movie.title,
-        slug: movie.slug,
-        release_year: movie.release_year,
-        subscription_type: movie.subscription_type,
-        view_count: movie.view_count,
-        review_count: movie.reviews.length,
-        created_at: movie.created_at,
-        created_by: movie.created_by?.username
-      };
+    // Dynamic Sorting
+    const allowedSortFields: Record<string, string> = {
+      title: 'movie.title',
+      created_at: 'movie.created_at',
+      release_year: 'movie.release_year',
+      view_count: 'movie.view_count',
+      review_count: 'review_count',
+    };
 
-      arrayOfMovies.push(film)
-    })
+    const sortColumn = allowedSortFields[sortBy] || 'movie.created_at';
+    qb.orderBy(sortColumn, sortOrder);
+
+    // Pagination & Execution
+    const total = await qb.getCount();
+    const rawMovies = await qb
+      .offset((page - 1) * limit)
+      .limit(limit)
+      .getRawMany();
+
+    const movies = rawMovies.map((m) => ({
+      ...m,
+      review_count: Number(m.review_count || 0),
+    }));
+
     return {
       statusCode: 200,
-      message: "All movies",
+      message: 'All movies',
       data: {
-        movies: arrayOfMovies,
-        total: arrayOfMovies.length
-      }
-    }
+        movies,
+        total,
+        pagination: {
+          total,
+          page,
+          limit,
+          pages: Math.ceil(total / limit),
+        },
+      },
+    };
   }
-
   async findBySlug(slug: string, canWatch: boolean): Promise<Isuccess> {
     const movie = await this.movieRepo.findOne({
       where: { slug },
@@ -621,7 +661,7 @@ export class MoviesService {
           release_year: true,
           poster_url: true,
           subscription_type: true,
-          slug : true
+          slug: true
         }
       });
       if (!movie) throw new NotFoundException(`Movie with this ${id} is not found`);

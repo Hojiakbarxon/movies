@@ -78,8 +78,22 @@ export class AdminMoviesController {
 
     @Get('movies')
     @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
-    findAll(): Promise<Isuccess> {
-        return this.moviesService.findAllForAdmin();
+    findAll(
+        @Query('page') page?: string,
+        @Query('limit') limit?: string,
+        @Query('search') search?: string,
+        @Query('subscription_type') subscription_type?: string,
+        @Query("sortBy") sortBy?: string,
+        @Query("sortOrder") sortOrder?: 'ASC' | 'DESC'
+    ): Promise<Isuccess> {
+        return this.moviesService.findAllForAdmin(
+            page ? parseInt(page) : 1,
+            limit ? parseInt(limit) : 10,
+            search,
+            subscription_type,
+            sortBy,
+            sortOrder
+        );
     }
 
 
