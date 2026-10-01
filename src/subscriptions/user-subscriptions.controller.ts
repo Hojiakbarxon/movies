@@ -10,6 +10,7 @@ import {
   HttpCode,
   Req,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { UserSubscriptionsService } from './user-subscriptions.service';
 import { PurchaseSubscriptionDto } from './dto/purchase-subscription.dto';
@@ -36,8 +37,10 @@ export class UserSubscriptionsController {
 
   @Get()
   @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
-  findAll(): Promise<Isuccess> {
-    return this.userSubsService.findAll();
+  findAll(
+    @Query("userId") userId?: string
+  ): Promise<Isuccess> {
+    return this.userSubsService.findAll(userId);
   }
 
   @Get('user/:userId')
@@ -63,7 +66,6 @@ export class UserSubscriptionsController {
 
   @Delete(':id')
   @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
-  @HttpCode(200)
   remove(@Param('id', ParseUUIDPipe) id: string): Promise<Isuccess> {
     return this.userSubsService.remove(id);
   }
