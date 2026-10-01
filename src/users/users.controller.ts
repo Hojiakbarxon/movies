@@ -11,6 +11,7 @@ import {
   UseInterceptors,
   UploadedFile,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -54,8 +55,18 @@ export class UsersController {
   @Get()
   @UseGuards(AuthGuard, RoleGuard)
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
-  findAll(): Promise<Isuccess> {
-    return this.usersService.findAll();
+  findAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('role') role?: UserRole,
+    @Query('search') search?: string,
+  ): Promise<Isuccess> {
+    return this.usersService.findAll(
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 3,
+      role,
+      search
+    );
   };
 
   // Superadmin
@@ -75,7 +86,7 @@ export class UsersController {
 
   //Superadmin, Admin, Owner
   @Patch(':userId')
-  @UseGuards(AuthGuard, RoleGuard,OwnershipGuard)
+  @UseGuards(AuthGuard, RoleGuard, OwnershipGuard)
   @UseInterceptors(FileInterceptor("avatar", avatarMulterOptions))
   update(
     @Param('userId', ParseUUIDPipe) userId: string,
