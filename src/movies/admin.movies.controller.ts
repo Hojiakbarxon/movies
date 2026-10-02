@@ -29,11 +29,18 @@ import { OwnershipGuard } from '../auth/guards/ownership/ownership.guard';
 import { RoleGuard } from '../auth/guards/role/role.guard';
 import { Roles } from '../auth/decorators/role.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { CreateMovieCastDto } from './dto/create-movie-cast.dto';
+import { TmdbService } from '../utils/TMDB.service';
+import { ConnectTmdbMovieDto } from './dto/connect-tmdb-movie.dto';
+import { AddMovieCastBulkDto } from './dto/add-movie-cast-bulk.dto';
 
 @Controller('admin')
 @UseGuards(AuthGuard, RoleGuard)
 export class AdminMoviesController {
-    constructor(private readonly moviesService: MoviesService) { }
+    constructor(
+        private readonly moviesService: MoviesService,
+        private readonly tmdbService: TmdbService
+    ) { }
 
     @Post('movies')
     @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
@@ -52,12 +59,52 @@ export class AdminMoviesController {
         return this.moviesService.create(dto, req.user.id, poster);
     }
 
-    @Get('movies')
+    @Get('movies/tmdb/search')
     @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
-    findAll(): Promise<Isuccess> {
-        return this.moviesService.findAllForAdmin();
+    searchTmdbMovies(
+        @Query('query') query: string,
+    ) {
+        return this.tmdbService.searchMovies(query);
     }
 
+    @Get('movies/:id/tmdb/cast')
+    @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
+    getTmdbCast(
+        @Param('id', ParseUUIDPipe) id: string,
+    ) {
+        return this.moviesService.getTmdbCast(id);
+    }
+
+
+    @Get('movies')
+    @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
+    findAll(
+        @Query('page') page?: string,
+        @Query('limit') limit?: string,
+        @Query('search') search?: string,
+        @Query('subscription_type') subscription_type?: string,
+        @Query("sortBy") sortBy?: string,
+        @Query("sortOrder") sortOrder?: 'ASC' | 'DESC'
+    ): Promise<Isuccess> {
+        return this.moviesService.findAllForAdmin(
+            page ? parseInt(page) : 1,
+            limit ? parseInt(limit) : 10,
+            search,
+            subscription_type,
+            sortBy,
+            sortOrder
+        );
+    }
+
+
+    @Patch('movies/:id/tmdb')
+    @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
+    connectTmdbMovie(
+        @Param('id', ParseUUIDPipe) id: string,
+        @Body() dto: ConnectTmdbMovieDto,
+    ): Promise<Isuccess> {
+        return this.moviesService.connectTmdbMovie(id, dto.tmdbId);
+    }
 
     @Patch('movies/:id')
     @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
@@ -79,6 +126,25 @@ export class AdminMoviesController {
     @HttpCode(200)
     remove(@Param('id', ParseUUIDPipe) id: string): Promise<Isuccess> {
         return this.moviesService.remove(id);
+    }
+
+
+    @Post('movies/:id/add-actors')
+    @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+    addActors(
+        @Param('id', ParseUUIDPipe) id: string,
+        @Body() dto: AddMovieCastBulkDto,
+    ): Promise<Isuccess> {
+        return this.moviesService.addActors(id, dto.actors);
+    }
+
+    @Post('movies/:id/add-actor')
+    @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+    addActor(
+        @Param('id', ParseUUIDPipe) id: string,
+        @Body() dto: CreateMovieCastDto
+    ): Promise<Isuccess> {
+        return this.moviesService.addActor(id, dto)
     }
 
     @Post('movies/:id/files')

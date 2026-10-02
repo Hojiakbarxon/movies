@@ -14,6 +14,11 @@ import { Token } from '../utils/Token';
 import { Payment } from '../payments/entities/payment.entity';
 import { UserSubscription } from '../subscriptions/entities/user-subscription.entity';
 import { AdminMoviesController } from './admin.movies.controller';
+import { R2Service } from '../utils/r2.service';
+import { MovieCast } from './entities/movie-cast.entity';
+import { Actor } from '../users/entities/actors.entity';
+import { TmdbService } from '../utils/TMDB.service';
+import { AuthGuard } from '../auth/guards/auth/auth.guard';
 
 @Module({
   imports : [
@@ -26,10 +31,12 @@ import { AdminMoviesController } from './admin.movies.controller';
       Favourites,
       Reviews,
       Payment,
-      UserSubscription
+      UserSubscription,
+      MovieCast,
+      Actor
     ])
   ],
   controllers: [MoviesController, AdminMoviesController],
-  providers: [MoviesService, Conflict, Token],
+  providers: [MoviesService, Conflict, Token, R2Service, TmdbService, AuthGuard],
 })
 export class MoviesModule {}

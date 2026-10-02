@@ -12,9 +12,12 @@ import { Favourites } from '../favourites/entities/favourite.entity';
 import { Reviews } from '../movies/entities/reviews.entity';
 import { Payment } from '../payments/entities/payment.entity';
 import { UserSubscription } from '../subscriptions/entities/user-subscription.entity';
+import { R2Service } from '../utils/r2.service';
+import { Actor } from './entities/actors.entity';
+import { MovieCast } from '../movies/entities/movie-cast.entity';
 
 @Module({
-  imports : [
+  imports: [
     TypeOrmModule.forFeature([
       User,
       Profile,
@@ -22,10 +25,12 @@ import { UserSubscription } from '../subscriptions/entities/user-subscription.en
       Favourites,
       Reviews,
       Payment,
-      UserSubscription
+      UserSubscription,
+      Actor,
+      MovieCast
     ])
   ],
   controllers: [UsersController],
-  providers: [UsersService, Conflict, Crypto, Token],
+  providers: [UsersService, Conflict, Crypto, Token, R2Service],
 })
-export class UsersModule {}
+export class UsersModule { }

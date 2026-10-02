@@ -6,6 +6,7 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { MovieFile } from './movie-file.entity';
@@ -13,6 +14,7 @@ import { MovieCategory } from './movie-category.entity';
 import { Favourites } from '../../favourites/entities/favourite.entity';
 import { Reviews } from './reviews.entity';
 import { TimestampedEntity } from '../../utils/base.entity';
+import { MovieCast } from './movie-cast.entity';
 
 export enum SubscriptionType {
   FREE = 'free',
@@ -20,10 +22,11 @@ export enum SubscriptionType {
 }
 
 @Entity('movies')
-export class Movie extends TimestampedEntity{
+export class Movie extends TimestampedEntity {
   @Column({ type: 'varchar', length: 100 })
   title: string;
 
+  @Index('IDX_MOVIE_SLUG')
   @Column({ type: 'varchar', length: 100, unique: true })
   slug: string;
 
@@ -48,6 +51,9 @@ export class Movie extends TimestampedEntity{
   @Column({ type: 'int', default: 0 })
   view_count: number;
 
+  @Column({ type: 'integer', unique: true, nullable: true })
+  tmdbId: number;
+  
   @ManyToOne(() => User, (user) => user.movies, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'created_by' })
   created_by: User | null;
@@ -62,5 +68,8 @@ export class Movie extends TimestampedEntity{
   favourites: Favourites[];
 
   @OneToMany(() => Reviews, (reviews) => reviews.movie)
-  reviews : Reviews[];
+  reviews: Reviews[];
+
+  @OneToMany(() => MovieCast, (mcast) => mcast.movie)
+  movieCasts: MovieCast[]
 }

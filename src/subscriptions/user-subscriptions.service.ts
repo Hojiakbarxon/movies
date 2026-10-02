@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessThan, Repository } from 'typeorm';
 import { UserSubscription, SubscriptionStatus } from './entities/user-subscription.entity';
@@ -11,7 +11,7 @@ import { User } from '../users/entities/user.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Payment, PaymentStatus } from '../payments/entities/payment.entity';
 import { v4 as uuidv4 } from "uuid"
-import { sendMail } from '../utils/mail.service';
+import { isUUID } from 'class-validator';
 @Injectable()
 export class UserSubscriptionsService {
   constructor(
@@ -50,12 +50,28 @@ export class UserSubscriptionsService {
     };
   }
 
-  async findAll(): Promise<Isuccess> {
-    const subs = await this.userSubRepo.find({ relations: { user: true, plan: true } });
+  async findAll(
+    userId?: string
+  ): Promise<Isuccess> {
+    
+    if (userId) {
+      if (!isUUID(userId)) {
+        throw new BadRequestException("Invalid user id")
+      };
+      await this.conflict.mustExist({ id: userId }, this.userRepo, 'User', 'Id');
+    }
+
+    let subs = await this.userSubRepo.find({
+      relations: {
+        user: true,
+        plan: true,
+      },
+      where: userId ? { user: { id: userId } } : {}
+    })
 
     return {
       statusCode: 200,
-      message: 'All subscriptions',
+      message: userId ? 'All subscription for the given user' : "All subscriptions",
       data: subs,
     };
   }
@@ -73,7 +89,7 @@ export class UserSubscriptionsService {
   async findByUser(userId: string): Promise<Isuccess> {
     const subs = await this.userSubRepo.find({
       where: { user: { id: userId } },
-      relations: { plan: true },
+      relations: { plan: true, user: true },
       order: { created_at: 'DESC' },
     });
 

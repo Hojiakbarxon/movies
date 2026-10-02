@@ -19,6 +19,8 @@ export class OwnershipGuard implements CanActivate {
   ): Promise<boolean> {
     const req = context.switchToHttp().getRequest();
     const user = req.user;
+    const realUser = await this.userRepo.findOne({ where: { id: user.id } });
+    if (!realUser) throw new ForbiddenException("You have no permission!");
 
     if (req.params.review_id) {
       const reviewId = req.params.review_id;
@@ -33,7 +35,7 @@ export class OwnershipGuard implements CanActivate {
       });
 
       if (!review) throw new NotFoundException("The review with this id is not found")
-      if (user.role === UserRole.SUPERADMIN || user.role === UserRole.ADMIN) return true
+      if (realUser.role === UserRole.SUPERADMIN || user.role === UserRole.ADMIN) return true
       if (user.id === review?.user.id) return true
 
       throw new ForbiddenException("You have no permission!")
@@ -55,7 +57,7 @@ export class OwnershipGuard implements CanActivate {
 
       if (!payment) throw new NotFoundException("Payment with this id is not found.");
 
-      if (user.role === UserRole.SUPERADMIN || user.role === UserRole.ADMIN) return true
+      if (realUser.role === UserRole.SUPERADMIN || user.role === UserRole.ADMIN) return true
       if (user.id === payment.user_subscription.user.id) return true
 
       throw new ForbiddenException("You have no permission!");
@@ -67,11 +69,11 @@ export class OwnershipGuard implements CanActivate {
       const targetedUser = await this.userRepo.findOne({ where: { id: targetId } });
       if (!targetedUser) throw new NotFoundException("User with this id is not found");
 
-      if (user.role === UserRole.SUPERADMIN) return true;
+      if (realUser.role === UserRole.SUPERADMIN) return true;
 
       if (targetedUser.role === UserRole.SUPERADMIN) throw new ForbiddenException("You have no permission");
 
-      if (user.role === UserRole.ADMIN) {
+      if (realUser.role === UserRole.ADMIN) {
         if (targetedUser.role === UserRole.USER || user.id === targetId) return true
       }
 
@@ -94,7 +96,7 @@ export class OwnershipGuard implements CanActivate {
 
       if (!userSub) throw new NotFoundException("Not found");
 
-      if (user.role === UserRole.SUPERADMIN || user.role === UserRole.ADMIN) return true
+      if (realUser.role === UserRole.SUPERADMIN || user.role === UserRole.ADMIN) return true
       if (user.id === userSub.user.id) return true
 
       throw new ForbiddenException("You have no permission!");

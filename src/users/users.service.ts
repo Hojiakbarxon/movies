@@ -1,7 +1,6 @@
 import {
   Injectable,
   NotFoundException,
-  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -13,9 +12,10 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { Crypto } from '../utils/Crypto';
 import { Isuccess } from '../utils/success-response-interface';
 import { Conflict } from '../utils/conflict';
-import { join } from 'path';
-import { unlink } from 'fs/promises';
 import { envConfig } from '../utils/env.config';
+import { R2Service } from '../utils/r2.service';
+import { CreateActorDto } from './dto/create-actor-dto';
+import { Actor } from './entities/actors.entity';
 
 @Injectable()
 export class UsersService {
@@ -24,8 +24,11 @@ export class UsersService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(Profile)
     private readonly profileRepo: Repository<Profile>,
+    @InjectRepository(Actor)
+    private readonly actorRepo: Repository<Actor>,
     private readonly crypto: Crypto,
-    private readonly conflict: Conflict
+    private readonly conflict: Conflict,
+    private readonly r2Service: R2Service
   ) { }
 
   async create(dto: CreateUserDto, avatar?: Express.Multer.File): Promise<Isuccess> {
@@ -40,7 +43,7 @@ export class UsersService {
       username,
       email,
       password_hash,
-      avatar_url: avatar ? `uploads/avatars/${avatar.filename}` : undefined
+      avatar_url: avatar ? await this.r2Service.upload(avatar, 'avatars') : undefined
     });
 
     const savedUser = await this.userRepo.save(user);
@@ -67,7 +70,7 @@ export class UsersService {
       username,
       email,
       password_hash,
-      avatar_url: avatar ? `uploads/avatars/${avatar.filename}` : undefined,
+      avatar_url: avatar ? await this.r2Service.upload(avatar, 'avatars') : undefined,
       role
     });
 
@@ -108,17 +111,37 @@ export class UsersService {
     return 'SuperAdmin created successfully'
   }
 
-  async findAll(): Promise<Isuccess> {
-    const users = await this.userRepo.find({
-      relations: {
-        profile: true
-      }
-    });
+  async findAll(
+    page = 1,
+    limit = 3,
+    role?: UserRole,
+    search?: string
+  ): Promise<Isuccess> {
+
+    let qb = this.userRepo.createQueryBuilder('users');
+
+    if (role) {
+      qb.andWhere('users.role = :role', { role });
+    };
+
+    if (search) {
+      qb.andWhere('users.username ILIKE :search', { search: `%${search}%` })
+    }
+
+
+
+    qb.skip((page - 1) * limit).take(limit);
+    qb.orderBy('users.created_at', 'DESC');
+
+    let [users, total] = await qb.getManyAndCount();
 
     return {
       statusCode: 200,
-      message: "All users",
-      data: users
+      message: 'Users list',
+      data: {
+        users,
+        pagination: { total, page, limit, pages: Math.ceil(total / limit) }
+      }
     }
   }
 
@@ -162,24 +185,20 @@ export class UsersService {
   }
 
   async update(id: string, dto: UpdateUserDto, avatar?: Express.Multer.File): Promise<Isuccess> {
-    let { email, username } = dto;
+    let { username } = dto;
     const user = await this.conflict.mustExist({ id }, this.userRepo, 'User', 'ID') as User;
 
-    if (email) await this.conflict.mustBeUniqueOnUpdate(id, { email }, this.userRepo, "User", "email");
-
-    if (username) await this.conflict.mustBeUniqueOnUpdate(id, { username }, this.userRepo, "User", "email");
+    if (username) await this.conflict.mustBeUniqueOnUpdate(id, { username }, this.userRepo, "User", "username");
 
     const updateData: Partial<User> = {
-      email: dto.email ? dto.email : user.email,
       username: dto.username ? dto.username : user.username
     };
 
     if (avatar) {
       if (user.avatar_url) {
-        const oldAvatarPath = join(process.cwd(), user.avatar_url);
-        await unlink(oldAvatarPath);
+        await this.r2Service.delete(user.avatar_url);
       }
-      updateData.avatar_url = `uploads/avatars/${avatar.filename}`;
+      updateData.avatar_url = await this.r2Service.upload(avatar, 'avatars')
     }
 
     const updatedUser = await this.userRepo.update(id, { ...updateData });
@@ -192,8 +211,7 @@ export class UsersService {
 
     const updateData: Partial<Profile> = {
       full_name: dto?.full_name ? dto.full_name : profile.full_name,
-      country: dto.country ? dto.country : profile.country,
-      phone: dto.phone ? dto.phone : profile.phone
+      country: dto.country ? dto.country : profile.country
     };
 
     const updatedProfile = await this.profileRepo.update(profile.id, {
@@ -212,14 +230,47 @@ export class UsersService {
     await this.userRepo.delete({ id });
 
     if (user.avatar_url) {
-      let oldAvatarPath = join(process.cwd(), user.avatar_url);
-      await unlink(oldAvatarPath);
+      await this.r2Service.delete(user.avatar_url);
     };
 
     return {
       statusCode: 200,
       message: "User has been deleted successfully",
       data: {}
+    }
+  }
+
+  async createActor(data: CreateActorDto): Promise<Isuccess> {
+    let actor = this.actorRepo.create(data);
+    let savedActor = await this.actorRepo.save(actor);
+    return {
+      statusCode: 201,
+      message: "success",
+      data: { savedActor }
+    }
+  }
+
+  async getActor(id: string): Promise<Isuccess> {
+    let actor = await this.actorRepo.findOne({
+      where: { id },
+      select: {
+        name: true,
+        adult: true,
+        biography: true,
+        birthday: true,
+        deathday: true,
+        gender: true,
+        placeOfBirth: true,
+        profilePath: true
+      }
+    });
+
+    if (!actor) throw new NotFoundException("Actor is not found")
+
+    return {
+      statusCode: 200,
+      message: "Actor",
+      data: actor
     }
   }
 }

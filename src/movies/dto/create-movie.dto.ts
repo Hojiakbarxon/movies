@@ -23,7 +23,7 @@ export class CreateMovieDto {
 
     @Type(() => Number)
     @IsInt()
-    @Min(1888) // year film was invented, avoids nonsense values
+    @Min(1888)
     release_year: number;
 
     @Type(() => Number)

@@ -6,12 +6,14 @@ import { Category } from './entities/category.entity';
 import { Conflict } from '../utils/conflict';
 import { MovieCategory } from '../movies/entities/movie-category.entity';
 import { Token } from '../utils/Token';
+import { User } from '../users/entities/user.entity';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       Category,
-      MovieCategory
+      MovieCategory,
+      User
     ])
   ],
   controllers: [CategoriesController],

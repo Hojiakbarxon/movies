@@ -20,11 +20,11 @@ import { Roles } from '../auth/decorators/role.decorator';
 import { UserRole } from '../users/entities/user.entity';
 
 @Controller('subscription-plans')
-@UseGuards(AuthGuard, RoleGuard)
 export class SubscriptionPlansController {
   constructor(private readonly plansService: SubscriptionPlansService) {}
 
   @Post()
+  @UseGuards(AuthGuard, RoleGuard)
   @Roles(UserRole.SUPERADMIN)
   create(@Body() dto: CreateSubscriptionPlanDto): Promise<Isuccess> {
     return this.plansService.create(dto);
@@ -46,6 +46,7 @@ export class SubscriptionPlansController {
   }
 
   @Patch(':id')
+  @UseGuards(AuthGuard, RoleGuard)
   @Roles(UserRole.SUPERADMIN)
   update(
     @Param('id', ParseUUIDPipe) id: string,
@@ -55,6 +56,7 @@ export class SubscriptionPlansController {
   }
 
   @Delete(':id')
+  @UseGuards(AuthGuard, RoleGuard)
   @Roles(UserRole.SUPERADMIN)
   @HttpCode(200)
   remove(@Param('id', ParseUUIDPipe) id: string): Promise<Isuccess> {

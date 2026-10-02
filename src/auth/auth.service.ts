@@ -1,11 +1,10 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Req, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PendingUser } from './entities/pending.user.entity';
 import { Repository } from 'typeorm';
 import { RegisterDto } from './dto/register.dto';
 import { Crypto } from '../utils/Crypto';
 import { generateOtp } from '../utils/otp.service';
-import { sendMail } from '../utils/mail.service';
 import { Isuccess } from '../utils/success-response-interface';
 import { ConfrimOtpDto } from './dto/confirm-otp.dto';
 import { Conflict } from '../utils/conflict';
@@ -13,11 +12,12 @@ import { User } from '../users/entities/user.entity';
 import { Token } from '../utils/Token';
 import { Profile } from '../users/entities/profile.entity';
 import { LoginDto } from './dto/login.dto';
-import { Response } from 'express';
+import type { Request, Response } from 'express';
 import { UsersService } from '../users/users.service';
 import { ForgotPasswordDto } from './dto/forgot.password.dto';
 import { ProcessingUser } from './entities/processing.user.entity';
 import { ResetPasswordDto } from './dto/reset.password.dto';
+import { MailService } from '../utils/mail.service';
 
 @Injectable()
 export class AuthService {
@@ -30,7 +30,9 @@ export class AuthService {
         private readonly crypto: Crypto,
         private readonly conflicts: Conflict,
         private readonly token: Token,
-        private readonly userService: UsersService) {
+        private readonly userService: UsersService,
+        private readonly mail: MailService
+    ) {
     }
 
     async register(dto: RegisterDto): Promise<Isuccess> {
@@ -44,8 +46,11 @@ export class AuthService {
             throw new ConflictException("User with this email has already registered")
         };
 
+        await this.conflicts.mustBeUnique({ username }, this.userRepo, 'User', "email");
+
         let password_hash = await this.crypto.hash(password);
         let otp = generateOtp();
+        let hashedOtp = await this.crypto.hash(otp);
 
         let penUser = await this.penUserRepo.findOne({
             where: { email }
@@ -54,9 +59,9 @@ export class AuthService {
         let expires_in = new Date(Date.now() + 5 * 60 * 1000);
 
         if (penUser) {
-            let mail = await sendMail(email, otp);
+            let mail = await this.mail.sendMail(email, otp);
             await this.penUserRepo.update({ id: penUser.id }, {
-                otp,
+                otp : hashedOtp,
                 password_hash,
                 expires_in
             })
@@ -70,13 +75,13 @@ export class AuthService {
             }
         }
 
-        let mail = await sendMail(email, otp);
+        let mail = await this.mail.sendMail(email, otp);
 
         let pendingUser = await this.penUserRepo.create({
             email,
             username,
             password_hash,
-            otp,
+            otp : hashedOtp,
             expires_in
         });
 
@@ -101,7 +106,8 @@ export class AuthService {
             throw new BadRequestException("OTP is expired, request a new one");
         };
 
-        if (otp !== penUser.otp) {
+        let checkOtp = await this.crypto.compare(otp, penUser.otp);
+        if (!checkOtp) {
             throw new ConflictException("OTP is expired or wrong")
         };
 
@@ -131,15 +137,20 @@ export class AuthService {
 
         let user = await (await this.userService.findByEmailWithPassword(email)).data as User
 
-        if (!user) throw new BadRequestException("Email or Password is wrong!")
+        if (!user) {
+            res.clearCookie("refreshToken");
+            throw new BadRequestException("Email or Password is wrong!");
+        }
 
         let isMatch = await this.crypto.compare(password, user.password_hash);
 
-        if (!isMatch) throw new BadRequestException("Email or Password is wrong!")
+        if (!isMatch) {
+            res.clearCookie("refreshToken");
+            throw new BadRequestException("Email or Password is wrong!");
+        }
 
         let payload = {
-            id: user.id,
-            role: user.role
+            id: user.id
         };
 
         let authToken = await this.token.getAccessToken(payload);
@@ -165,12 +176,14 @@ export class AuthService {
         });
 
         const otp = generateOtp();
+        let hashedOtp = await this.crypto.hash(otp);
         let expires_in = new Date(Date.now() + 5 * 60 * 1000);
 
         if (existedProcessingUser) {
+            await this.mail.sendMail(email, otp)
             await this.proUserRepo.update({ id: existedProcessingUser.id }, {
                 email,
-                otp,
+                otp : hashedOtp,
                 expires_in
             });
 
@@ -183,9 +196,10 @@ export class AuthService {
             };
         };
 
+        await this.mail.sendMail(email, otp)
         let processingUser = await this.proUserRepo.create({
             ...dto,
-            otp,
+            otp : hashedOtp,
             expires_in
         });
         await this.proUserRepo.save(processingUser);
@@ -208,8 +222,9 @@ export class AuthService {
         if (Date.now() > processingUser.expires_in.getTime()) {
             throw new BadRequestException("OTP is expired, request a new one");
         };
+        let checkOtp = await this.crypto.compare(otp, processingUser.otp);
 
-        if (otp !== processingUser.otp) throw new BadRequestException("OTP is wrong or expired");
+        if (!checkOtp) throw new BadRequestException("OTP is wrong or expired");
 
         if (password !== repeat_password) throw new BadRequestException("Password did not match");
 
@@ -219,11 +234,38 @@ export class AuthService {
             password_hash
         });
 
+        await this.proUserRepo.delete({ email });
+
 
         return {
             statusCode: 200,
             message: "Password has been updated, successfully",
             data: {}
+        }
+    }
+
+    async getAccessToken(@Req() req: Request): Promise<Isuccess> {
+        let refreshToken = req?.cookies?.refreshToken;
+        if (!refreshToken) throw new UnauthorizedException("Please sign in first.")
+
+        try {
+            let data = this.token.verifyRefreshToken(refreshToken) as User;
+
+            let payload = {
+                id: data.id,
+            };
+
+            let authToken = this.token.getAccessToken(payload);
+
+            return {
+                statusCode: 200,
+                message: "success",
+                data: {
+                    authToken
+                }
+            }
+        } catch (error) {
+            throw new UnauthorizedException("Something went wrong, please sign in again.")
         }
     }
 }

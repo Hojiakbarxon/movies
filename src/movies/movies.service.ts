@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import slugify from 'slugify';
 import { Movie } from './entities/movie.entity';
-import { MovieFile } from './entities/movie-file.entity';
+import { MovieFile, SourceType } from './entities/movie-file.entity';
 import { Category } from '../categories/entities/category.entity';
 import { CreateMovieDto } from './dto/create-movie.dto';
 import { CreateMovieFileDto } from './dto/create-movie-file.dto';
@@ -11,12 +11,18 @@ import { Isuccess } from '../utils/success-response-interface';
 import { Conflict } from '../utils/conflict';
 import { MovieCategory } from './entities/movie-category.entity';
 import { User } from '../users/entities/user.entity';
-import { join } from 'path';
-import { unlink } from 'fs/promises';
 import { UpdateMovieFileDto } from './dto/update-movie-file.dto';
 import { UpdateMovieDto } from './dto/update-movie.dto';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { Reviews } from './entities/reviews.entity';
+import { R2Service } from '../utils/r2.service';
+import { reviewItems } from '../utils/Custom Types/review-item.type';
+import { MovieCast } from './entities/movie-cast.entity';
+import { CreateMovieCastDto } from './dto/create-movie-cast.dto';
+import { Actor } from '../users/entities/actors.entity';
+import { TmdbService } from '../utils/TMDB.service';
+import { UUIDTypes } from 'uuid';
+import { isUUID } from 'class-validator';
 
 @Injectable()
 export class MoviesService {
@@ -31,9 +37,15 @@ export class MoviesService {
     private readonly movieCategoryRepo: Repository<MovieCategory>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(MovieCast)
+    private readonly movieCastRepo: Repository<MovieCast>,
+    @InjectRepository(Actor)
+    private readonly actorRepo: Repository<Actor>,
     @InjectRepository(Reviews)
     private readonly reviewRepo: Repository<Reviews>,
     private readonly conflict: Conflict,
+    private readonly r2Service: R2Service,
+    private readonly tmdbService: TmdbService
   ) { }
 
   async create(
@@ -59,7 +71,7 @@ export class MoviesService {
       release_year: dto.release_year,
       duration_minutes: dto.duration_minutes,
       subscription_type: dto.subscription_type,
-      poster_url: poster ? `/uploads/posters/${poster.filename}` : undefined,
+      poster_url: poster ? await this.r2Service.upload(poster, 'posters') : undefined,
       created_by: user,
       rating: dto.rating
     });
@@ -115,41 +127,81 @@ export class MoviesService {
     };
   }
 
-  async findAllForAdmin(): Promise<Isuccess> {
-    let movies = await this.movieRepo.find({
-      relations: {
-        reviews: true,
-        created_by: true
-      }
-    });
+  async findAllForAdmin(
+    page = 1,
+    limit = 10,
+    search?: string,
+    subscription_type?: string,
+    sortBy: string = 'created_at',
+    sortOrder: 'ASC' | 'DESC' = 'DESC',
+  ): Promise<Isuccess> {
+    const qb = this.movieRepo
+      .createQueryBuilder('movie')
+      .leftJoin('movie.reviews', 'review')
+      .leftJoin('movie.created_by', 'created_by')
+      .leftJoin('movie.movie_categories', 'movie_category')
+      .leftJoin('movie_category.category', 'category')
+      .select([
+        'movie.id AS id',
+        'movie.title AS title',
+        'movie.slug AS slug',
+        'movie.release_year AS release_year',
+        'movie.subscription_type AS subscription_type',
+        'movie.view_count AS view_count',
+        'movie.created_at AS created_at',
+        'created_by.username AS created_by',
+      ])
+      .addSelect('COUNT(DISTINCT review.id)', 'review_count')
+      .groupBy('movie.id')
+      .addGroupBy('created_by.id');
 
-    let arrayOfMovies: object[] = [];
+    // Filters
+    if (search) {
+      qb.andWhere('movie.title ILIKE :search', { search: `%${search}%` });
+    }
+    if (subscription_type) {
+      qb.andWhere('movie.subscription_type = :subscription_type', { subscription_type });
+    }
 
-    movies.forEach((movie) => {
-      let film = {
-        id: movie.id,
-        title: movie.title,
-        slug: movie.slug,
-        release_year: movie.release_year,
-        subscription_type: movie.subscription_type,
-        view_count: movie.view_count,
-        review_count: movie.reviews.length,
-        created_at: movie.created_at,
-        created_by: movie.created_by?.username
-      };
+    // Dynamic Sorting
+    const allowedSortFields: Record<string, string> = {
+      title: 'movie.title',
+      created_at: 'movie.created_at',
+      release_year: 'movie.release_year',
+      view_count: 'movie.view_count',
+      review_count: 'review_count',
+    };
 
-      arrayOfMovies.push(film)
-    })
+    const sortColumn = allowedSortFields[sortBy] || 'movie.created_at';
+    qb.orderBy(sortColumn, sortOrder);
+
+    // Pagination & Execution
+    const total = await qb.getCount();
+    const rawMovies = await qb
+      .offset((page - 1) * limit)
+      .limit(limit)
+      .getRawMany();
+
+    const movies = rawMovies.map((m) => ({
+      ...m,
+      review_count: Number(m.review_count || 0),
+    }));
+
     return {
       statusCode: 200,
-      message: "All movies",
+      message: 'All movies',
       data: {
-        movies: arrayOfMovies,
-        total: arrayOfMovies.length
-      }
-    }
+        movies,
+        total,
+        pagination: {
+          total,
+          page,
+          limit,
+          pages: Math.ceil(total / limit),
+        },
+      },
+    };
   }
-
   async findBySlug(slug: string, canWatch: boolean): Promise<Isuccess> {
     const movie = await this.movieRepo.findOne({
       where: { slug },
@@ -158,23 +210,57 @@ export class MoviesService {
           category: true
         },
         files: true,
-        reviews: true
+        reviews: {
+          user: true
+        },
+        movieCasts: {
+          actor: true
+        }
       },
     }) as Movie;
 
     if (!movie) throw new BadRequestException('Movie not found');
 
+
     let sumOfRating: number = 0;
+    let items: Partial<reviewItems>[] = [];
 
     movie.reviews.forEach((review) => {
       sumOfRating += review.rating;
+      let item: Partial<reviewItems> = {
+        id: review.id,
+        user: {
+          id: review.user.id,
+          avatar_url: review.user.avatar_url,
+          username: review.user.username,
+        },
+        rating: review.rating,
+        comment: review.comment,
+        created_at: review.created_at
+      };
+      items.push(item);
     });
 
     let total_review: number = movie.reviews.length;
     let average_rating: number = total_review !== 0 ? sumOfRating / total_review : 0;
 
     const allowed = movie.subscription_type === 'free' || canWatch;
+    let actors: object[] = [];
+    let movieCast: MovieCast[] = movie.movieCasts.sort((a, b) => a.castOrder - b.castOrder);
 
+    movieCast.forEach((mcast) => {
+      let actor = {
+        characterName: mcast.characterName,
+        castOrder: mcast.castOrder,
+        actor: {
+          id: mcast.actor.id,
+          tmdbId: mcast.actor.tmdbId,
+          name: mcast.actor.name,
+          profilePath: mcast.actor.profilePath
+        }
+      };
+      actors.push(actor);
+    })
     const data = {
       id: movie?.id,
       title: movie?.title,
@@ -186,11 +272,14 @@ export class MoviesService {
       rating: movie.rating,
       subscription_type: movie.subscription_type,
       view_count: movie.view_count,
+      tmdbId: movie.tmdbId,
       categories: movie.movie_categories.map((item) => item.category.name),
       files: allowed ? movie.files : { message: "Activate subscription plan to watch the movie" },
+      actors,
       reviews: {
         average_rating,
-        count: total_review
+        count: total_review,
+        items
       }
     };
 
@@ -230,14 +319,9 @@ export class MoviesService {
     }
 
     if (poster) {
-      updateData.poster_url = `/uploads/posters/${poster.filename}`;
+      updateData.poster_url = await this.r2Service.upload(poster, 'posters');
       if (movie.poster_url) {
-        const oldPath = join(process.cwd(), movie.poster_url)
-        try {
-          await unlink(oldPath)
-        } catch (error) {
-          console.log(error)
-        }
+        await this.r2Service.delete(movie.poster_url);
       }
     }
 
@@ -270,12 +354,7 @@ export class MoviesService {
   async remove(id: string): Promise<Isuccess> {
     const movie = await this.conflict.mustExist({ id }, this.movieRepo, 'Movie', 'ID') as Movie;
     if (movie.poster_url) {
-      const oldPath = join(process.cwd(), movie.poster_url);
-      try {
-        await unlink(oldPath)
-      } catch (error) {
-        console.log(error)
-      }
+      await this.r2Service.delete(movie.poster_url);
     }
     await this.movieRepo.delete({ id });
 
@@ -286,7 +365,7 @@ export class MoviesService {
     };
   }
 
-  // --- Movie files ---
+  // --- Movie files/urls ---
 
   async addFile(
     movieId: string,
@@ -295,21 +374,32 @@ export class MoviesService {
   ): Promise<Isuccess> {
     const movie = await this.conflict.mustExist({ id: movieId }, this.movieRepo, 'Movie', 'ID') as Movie;
 
-    if (!file) throw new BadRequestException('Video file is required');
+    let { external_url, quality, source_type, language } = dto;
+    let file_url: string | undefined = undefined;
 
+    if (source_type === SourceType.uploaded) {
+      if (external_url) throw new BadRequestException("No need for external url");
+      if (!file) throw new BadRequestException('Video file is required');
+      file_url = await this.r2Service.upload(file, 'movies');
+    }
+    if (source_type === SourceType.external) {
+      if (file) throw new BadRequestException("No need for file upload")
+      if (!external_url) throw new BadRequestException("External url is required");
+    };
     const movieFile = this.movieFileRepo.create({
       movie,
-      file_url: `/uploads/movies/${file.filename}`,
-      quality: dto.quality,
-      language: dto.language ?? 'uz',
+      external_url,
+      file_url,
+      quality,
+      language: language ?? 'uz',
+      source_type
     });
-
     const saved = await this.movieFileRepo.save(movieFile);
 
     return {
       statusCode: 201,
       message: 'Movie file has been uploaded successfully',
-      data: saved,
+      data: saved
     };
   }
 
@@ -337,12 +427,7 @@ export class MoviesService {
   async removeFile(fileId: string): Promise<Isuccess> {
     const movieFile = await this.conflict.mustExist({ id: fileId }, this.movieFileRepo, 'MovieFile', 'ID') as MovieFile;
     if (movieFile.file_url) {
-      const oldPath = join(process.cwd(), movieFile.file_url)
-      try {
-        await unlink(oldPath)
-      } catch (error) {
-        console.log(error)
-      }
+      await this.r2Service.delete(movieFile.file_url);
     }
     await this.movieFileRepo.delete({ id: fileId });
 
@@ -376,6 +461,7 @@ export class MoviesService {
       id: savedReview.id,
       user: {
         id: user.id,
+        avatar_url: user.avatar_url,
         username: user.username
       },
       movie_id: movie.id,
@@ -411,6 +497,180 @@ export class MoviesService {
       statusCode: 200,
       message: "Review deleted successfully",
       data: {}
+    }
+  }
+
+
+  // Add an actor
+  async addActor(movieId: string, data: CreateMovieCastDto): Promise<Isuccess> {
+    let { tmdbId, characterName, castOrder } = data;
+    let movie = await this.conflict.mustExist({ id: movieId }, this.movieRepo, 'Movie', "ID") as Movie;
+
+    let actor = await this.actorRepo.findOne({
+      where: {
+        tmdbId
+      }
+    });
+
+    if (!actor) {
+      const actorFromTmdb = await this.tmdbService.getPerson(tmdbId);
+      let { adult, biography, birthday, deathday, gender, id, name, placeOfBirth, profilePath } = actorFromTmdb;
+
+      actor = await this.actorRepo.create({
+        adult,
+        biography,
+        birthday,
+        deathday,
+        gender,
+        name,
+        placeOfBirth,
+        profilePath,
+        tmdbId
+      })
+
+      await this.actorRepo.save(actor)
+    }
+
+    let existed = await this.movieCastRepo.findOne({
+      where: {
+        movie: {
+          id: movieId
+        },
+        actor: {
+          id: actor?.id
+        }
+      },
+      relations: {
+        movie: true,
+        actor: true
+      }
+    });
+
+    if (existed) throw new BadRequestException("Actor already exists in this movie");
+
+    let movieCast = this.movieCastRepo.create({
+      actor,
+      movie,
+      castOrder,
+      characterName
+    });
+
+    let savedMovieCast = await this.movieCastRepo.save(movieCast);
+
+    return {
+      statusCode: 200,
+      message: "Actor added to the movie",
+      data: {
+        actorId: savedMovieCast.actor.id
+      }
+    }
+  }
+
+
+  // Add actors at once
+  async addActors(movieId: string, items: CreateMovieCastDto[]): Promise<Isuccess> {
+    let movie = await this.conflict.mustExist({ id: movieId }, this.movieRepo, 'Movie', "ID") as Movie;
+
+    let results: { tmdbId: number; status: 'added' | 'skipped' | 'failed'; actorId?: string; reason?: string }[] = [];
+
+    for (const item of items) {
+      const { tmdbId, characterName, castOrder } = item;
+      try {
+        let actor = await this.actorRepo.findOne({ where: { tmdbId } });
+
+        if (!actor) {
+          const actorFromTmdb = await this.tmdbService.getPerson(tmdbId);
+
+          const { adult, biography, birthday, deathday, gender, name, placeOfBirth, profilePath } = actorFromTmdb;
+
+          actor = this.actorRepo.create({
+            adult, biography, birthday, deathday, gender, name, placeOfBirth, profilePath, tmdbId,
+          });
+          await this.actorRepo.save(actor);
+        }
+
+        const existed = await this.movieCastRepo.findOne({
+          where: { movie: { id: movieId }, actor: { id: actor.id } },
+          relations: { movie: true, actor: true },
+        });
+
+        if (existed) {
+          results.push({ tmdbId, status: 'skipped', reason: 'Actor already in this movie' });
+          continue;
+        }
+
+        const movieCast = this.movieCastRepo.create({ actor, movie, castOrder, characterName });
+        const saved = await this.movieCastRepo.save(movieCast);
+
+        results.push({ tmdbId, status: 'added', actorId: saved.actor.id });
+      } catch (err) {
+        results.push({ tmdbId, status: 'failed', reason: 'Unknown error' });
+      }
+    }
+
+    return {
+      statusCode: 200,
+      message: 'Bulk actor add complete',
+      data: { results },
+    };
+  }
+
+
+  // Connect movie to TMDB
+  async connectTmdbMovie(
+    movieId: string,
+    tmdbId: number,
+  ): Promise<Isuccess> {
+
+    await this.conflict.mustExist({ id: movieId }, this.movieRepo, 'Movie', 'ID');
+
+    await this.movieRepo.update({ id: movieId }, {
+      tmdbId
+    })
+
+    return {
+      statusCode: 200,
+      message: 'Movie successfully connected to TMDB',
+      data: {}
+    };
+  }
+
+  async getTmdbCast(movieId: string) {
+
+    const movie = await this.conflict.mustExist({ id: movieId }, this.movieRepo, 'MOvie', 'ID') as Movie;
+
+    if (!movie.tmdbId) {
+      throw new BadRequestException(
+        'Movie is not connected to TMDB',
+      );
+    }
+
+    return this.tmdbService.getMovieCast(movie.tmdbId);
+  };
+
+  // Suggestion list
+  async getSuggestion(movieIds: string[]): Promise<Isuccess> {
+    let suggestedMovies: Partial<Movie>[] = [];
+    for (let id of movieIds) {
+      if (!isUUID(id)) throw new BadRequestException("Invalid movie id.");
+      let movie = await this.movieRepo.findOne({
+        where: { id },
+        select: {
+          id: true,
+          title: true,
+          release_year: true,
+          poster_url: true,
+          subscription_type: true,
+          slug: true
+        }
+      });
+      if (!movie) throw new NotFoundException(`Movie with this ${id} is not found`);
+      suggestedMovies.push(movie);
+    }
+    return {
+      statusCode: 200,
+      message: "Suggested movies before Spiderman: Brand New Day",
+      data: suggestedMovies
     }
   }
 }

@@ -12,6 +12,7 @@ import { Token } from '../utils/Token';
 import { Payment } from '../payments/entities/payment.entity';
 import { Reviews } from '../movies/entities/reviews.entity';
 import { Task } from './tasks.service';
+import { MailService } from '../utils/mail.service';
 
 @Module({
   imports : [
@@ -24,6 +25,6 @@ import { Task } from './tasks.service';
     ])
   ],
   controllers: [SubscriptionPlansController, UserSubscriptionsController],
-  providers: [SubscriptionPlansService, Conflict, UserSubscriptionsService, Token, Task]
+  providers: [SubscriptionPlansService, Conflict, UserSubscriptionsService, Token, Task, MailService]
 })
 export class SubscriptionsModule {}

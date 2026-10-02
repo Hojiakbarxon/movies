@@ -11,6 +11,7 @@ import {
   UseInterceptors,
   UploadedFile,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -24,14 +25,15 @@ import { Roles } from '../auth/decorators/role.decorator';
 import { UserRole } from './entities/user.entity';
 import { RoleGuard } from '../auth/guards/role/role.guard';
 import { OwnershipGuard } from '../auth/guards/ownership/ownership.guard';
+import { CreateActorDto } from './dto/create-actor-dto';
 
 @Controller('users')
-@UseGuards(AuthGuard, RoleGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) { }
 
   // Superadmin admin
   @Post()
+  @UseGuards(AuthGuard, RoleGuard)
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @UseInterceptors(FileInterceptor("avatar", avatarMulterOptions))
   create(@Body() dto: CreateUserDto, @UploadedFile() avatar?: Express.Multer.File): Promise<Isuccess> {
@@ -39,6 +41,7 @@ export class UsersController {
   }
 
   @Post("admin")
+  @UseGuards(AuthGuard, RoleGuard)
   @Roles(UserRole.SUPERADMIN)
   @UseInterceptors(FileInterceptor("avatar", avatarMulterOptions))
   createAdmin(
@@ -50,13 +53,25 @@ export class UsersController {
 
   // Admin, Superadmin
   @Get()
+  @UseGuards(AuthGuard, RoleGuard)
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
-  findAll(): Promise<Isuccess> {
-    return this.usersService.findAll();
+  findAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('role') role?: UserRole,
+    @Query('search') search?: string,
+  ): Promise<Isuccess> {
+    return this.usersService.findAll(
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 3,
+      role,
+      search
+    );
   };
 
   // Superadmin
   @Get('email/:email')
+  @UseGuards(AuthGuard, RoleGuard)
   @Roles(UserRole.SUPERADMIN)
   findByEmailWithPassword(@Param('email') email: string): Promise<Isuccess> {
     return this.usersService.findByEmailWithPassword(email);
@@ -64,14 +79,14 @@ export class UsersController {
 
   // Admin, Superadmin, Owner
   @Get(':userId')
-  @UseGuards(OwnershipGuard)
+  @UseGuards(AuthGuard, RoleGuard, OwnershipGuard)
   findOne(@Param('userId', ParseUUIDPipe) userId: string): Promise<Isuccess> {
     return this.usersService.findOne(userId);
   };
 
   //Superadmin, Admin, Owner
   @Patch(':userId')
-  @UseGuards(OwnershipGuard)
+  @UseGuards(AuthGuard, RoleGuard, OwnershipGuard)
   @UseInterceptors(FileInterceptor("avatar", avatarMulterOptions))
   update(
     @Param('userId', ParseUUIDPipe) userId: string,
@@ -83,7 +98,7 @@ export class UsersController {
 
   //Superadmin, Admin, Owner
   @Patch(':userId/profile')
-  @UseGuards(OwnershipGuard)
+  @UseGuards(AuthGuard, RoleGuard, OwnershipGuard)
   updateProfile(
     @Param('userId', ParseUUIDPipe) userId: string,
     @Body() dto: UpdateProfileDto,
@@ -91,10 +106,21 @@ export class UsersController {
     return this.usersService.updateProfile(userId, dto);
   }
 
-  // Superadmin
   @Delete(':userId')
-  @Roles(UserRole.SUPERADMIN)
+  @UseGuards(AuthGuard, RoleGuard, OwnershipGuard)
   remove(@Param('userId', ParseUUIDPipe) userId: string): Promise<Isuccess> {
     return this.usersService.remove(userId);
+  }
+
+  @Post('/new-actor')
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  addActor(@Body() dto: CreateActorDto): Promise<Isuccess> {
+    return this.usersService.createActor(dto);
+  }
+
+  @Get('actors/:actorId')
+  getActor(@Param('actorId', ParseUUIDPipe) actorId: string): Promise<Isuccess> {
+    return this.usersService.getActor(actorId)
   }
 }
