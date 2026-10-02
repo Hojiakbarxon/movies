@@ -1,7 +1,6 @@
 import {
   Injectable,
   NotFoundException,
-  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -13,8 +12,6 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { Crypto } from '../utils/Crypto';
 import { Isuccess } from '../utils/success-response-interface';
 import { Conflict } from '../utils/conflict';
-import { join } from 'path';
-import { unlink } from 'fs/promises';
 import { envConfig } from '../utils/env.config';
 import { R2Service } from '../utils/r2.service';
 import { CreateActorDto } from './dto/create-actor-dto';
@@ -114,17 +111,37 @@ export class UsersService {
     return 'SuperAdmin created successfully'
   }
 
-  async findAll(): Promise<Isuccess> {
-    const users = await this.userRepo.find({
-      relations: {
-        profile: true
-      }
-    });
+  async findAll(
+    page = 1,
+    limit = 3,
+    role?: UserRole,
+    search?: string
+  ): Promise<Isuccess> {
+
+    let qb = this.userRepo.createQueryBuilder('users');
+
+    if (role) {
+      qb.andWhere('users.role = :role', { role });
+    };
+
+    if (search) {
+      qb.andWhere('users.username ILIKE :search', { search: `%${search}%` })
+    }
+
+
+
+    qb.skip((page - 1) * limit).take(limit);
+    qb.orderBy('users.created_at', 'DESC');
+
+    let [users, total] = await qb.getManyAndCount();
 
     return {
       statusCode: 200,
-      message: "All users",
-      data: users
+      message: 'Users list',
+      data: {
+        users,
+        pagination: { total, page, limit, pages: Math.ceil(total / limit) }
+      }
     }
   }
 
@@ -244,7 +261,7 @@ export class UsersService {
         deathday: true,
         gender: true,
         placeOfBirth: true,
-        profilePath : true
+        profilePath: true
       }
     });
 
