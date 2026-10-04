@@ -46,7 +46,9 @@ export class AuthService {
             throw new ConflictException("User with this email has already registered")
         };
 
-        await this.conflicts.mustBeUnique({ username }, this.userRepo, 'User', "email");
+        await this.conflicts.mustBeUnique({ username }, this.userRepo, 'User', "username");
+
+        await this.conflicts.mustBeUnique({ username }, this.penUserRepo, 'User', 'username');
 
         let password_hash = await this.crypto.hash(password);
         let otp = generateOtp();
@@ -59,9 +61,9 @@ export class AuthService {
         let expires_in = new Date(Date.now() + 5 * 60 * 1000);
 
         if (penUser) {
-            let mail = await this.mail.sendMail(email, otp);
+            await this.mail.sendMail(email, otp);
             await this.penUserRepo.update({ id: penUser.id }, {
-                otp : hashedOtp,
+                otp: hashedOtp,
                 password_hash,
                 expires_in
             })
@@ -75,13 +77,13 @@ export class AuthService {
             }
         }
 
-        let mail = await this.mail.sendMail(email, otp);
+        await this.mail.sendMail(email, otp);
 
-        let pendingUser = await this.penUserRepo.create({
+        let pendingUser = this.penUserRepo.create({
             email,
             username,
             password_hash,
-            otp : hashedOtp,
+            otp: hashedOtp,
             expires_in
         });
 
@@ -183,7 +185,7 @@ export class AuthService {
             await this.mail.sendMail(email, otp)
             await this.proUserRepo.update({ id: existedProcessingUser.id }, {
                 email,
-                otp : hashedOtp,
+                otp: hashedOtp,
                 expires_in
             });
 
@@ -199,7 +201,7 @@ export class AuthService {
         await this.mail.sendMail(email, otp)
         let processingUser = await this.proUserRepo.create({
             ...dto,
-            otp : hashedOtp,
+            otp: hashedOtp,
             expires_in
         });
         await this.proUserRepo.save(processingUser);

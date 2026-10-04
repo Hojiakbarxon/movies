@@ -16,6 +16,7 @@ import { UserSubscription } from '../subscriptions/entities/user-subscription.en
 import { R2Service } from '../utils/r2.service';
 import { MailService } from '../utils/mail.service';
 import { Actor } from '../users/entities/actors.entity';
+import { Schedule } from './schedules/scheduled.tasks.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([
@@ -29,6 +30,6 @@ import { Actor } from '../users/entities/actors.entity';
     Actor
   ])],
   controllers: [AuthController],
-  providers: [AuthService, Conflict, Token, Crypto, UsersService, R2Service, MailService]
+  providers: [AuthService, Conflict, Token, Crypto, UsersService, R2Service, MailService, Schedule]
 })
 export class AuthModule { }
