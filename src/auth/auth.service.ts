@@ -18,6 +18,9 @@ import { ForgotPasswordDto } from './dto/forgot.password.dto';
 import { ProcessingUser } from './entities/processing.user.entity';
 import { ResetPasswordDto } from './dto/reset.password.dto';
 import { MailService } from '../utils/mail.service';
+import { TwoFactorService } from './two-factor-authentication/two-factor.service';
+import { TwoFactorLoginDto } from './dto/two-factor-login.dto';
+import { Jwt, JwtPayload } from 'jsonwebtoken';
 
 @Injectable()
 export class AuthService {
@@ -31,8 +34,22 @@ export class AuthService {
         private readonly conflicts: Conflict,
         private readonly token: Token,
         private readonly userService: UsersService,
-        private readonly mail: MailService
+        private readonly mail: MailService,
+        private readonly twoFactor: TwoFactorService
     ) {
+    }
+
+    private async getUserWith2faFields(id: string) {
+        return this.userRepo.findOne({
+            where: { id },
+            select: {
+                id: true,
+                email: true,
+                enabledTwoFactorAuthentication: true,
+                secretKey: true,
+                pendingSecretKey: true,
+            },
+        });
     }
 
     async register(dto: RegisterDto): Promise<Isuccess> {
@@ -155,17 +172,21 @@ export class AuthService {
             id: user.id
         };
 
-        let authToken = await this.token.getAccessToken(payload);
-        let refreshToken = await this.token.getRefreshToken(res, payload);
-
-        return {
-            statusCode: 200,
-            message: "You have signed in successfully",
-            data: {
-                authToken,
-                refreshToken
+        if (user.enabledTwoFactorAuthentication) {
+            res.clearCookie('refreshToken');
+            const twoFactorToken = this.token.getTwoFactorToken(payload);
+            return {
+                statusCode: 200,
+                message: "Two-factor authentication required",
+                data: {
+                    twoFactorRequired: true,
+                    twoFactorToken
+                }
             }
-        }
+        };
+
+        return this.issueTokens(user.id, res, "You have signed in successfully")
+
     };
 
     async forgotPassword(dto: ForgotPasswordDto): Promise<Isuccess> {
@@ -244,7 +265,97 @@ export class AuthService {
             message: "Password has been updated, successfully",
             data: {}
         }
-    }
+    };
+
+    async enableTwoFactor(userId: string): Promise<Isuccess> {
+        const user = await this.getUserWith2faFields(userId);
+        if (!user) throw new UnauthorizedException("Please sign in first");
+        if (user.enabledTwoFactorAuthentication) {
+            throw new ConflictException("Two-factor authentication is already enabled");
+        }
+
+        const secret = this.twoFactor.generateSecret();
+        await this.userRepo.update({ id: userId }, {
+            pendingSecretKey: this.twoFactor.encrypt(secret)
+        });
+
+        return {
+            statusCode: 200,
+            message: "success",
+            data: {
+                secret,
+                otpauthUrl: this.twoFactor.buildOtpauthUrl(user.email, secret)
+            }
+        };
+    };
+
+    async confirmTwoFactor(userId: string, otp: string): Promise<Isuccess> {
+        const user = await this.getUserWith2faFields(userId);
+        if (!user?.pendingSecretKey) {
+            throw new BadRequestException("Start two-factor setup first");
+        }
+
+        const secret = this.twoFactor.decrypt(user.pendingSecretKey);
+        if (!this.twoFactor.verify(otp, secret)) {
+            throw new BadRequestException("Invalid or expired code");
+        }
+
+        await this.userRepo.update({ id: userId }, {
+            enabledTwoFactorAuthentication: true,
+            secretKey: user.pendingSecretKey,
+            pendingSecretKey: null
+        });
+
+        return { statusCode: 200, message: "Two-factor authentication enabled", data: {} };
+    };
+
+    async loginWithTwoFactor(@Req() req: any, dto: TwoFactorLoginDto, res: Response): Promise<Isuccess> {
+        let twoFactorToken: string = req.headers['two-factor-token'];
+        if (!twoFactorToken) throw new UnauthorizedException("2FA session expired, please sign in again");
+
+        let bearer = twoFactorToken.split(' ')[0];
+        let token = twoFactorToken.split(' ')[1];
+
+        if (bearer !== 'Bearer' || !token) throw new UnauthorizedException("2FA session expired, please sign in again");
+
+        let payload: JwtPayload;
+        try {
+            payload = this.token.verifyTwoFactorToken(token);
+        } catch {
+            throw new UnauthorizedException("2FA session expired, please sign in again");
+        }
+
+        const user = await this.getUserWith2faFields(payload.id);
+        if (!user || !user.enabledTwoFactorAuthentication || !user.secretKey) {
+            throw new UnauthorizedException("Please sign in again");
+        }
+
+        const secret = this.twoFactor.decrypt(user.secretKey);
+        if (!this.twoFactor.verify(dto.otp, secret)) {
+            throw new BadRequestException("Invalid or expired code");
+        }
+
+        return this.issueTokens(user.id, res, "You have signed in successfully");
+    };
+
+    async disableTwoFactor(userId: string, otp: string): Promise<Isuccess> {
+        const user = await this.getUserWith2faFields(userId);
+        if (!user?.enabledTwoFactorAuthentication || !user.secretKey) {
+            throw new BadRequestException("Two-factor authentication is not enabled");
+        }
+
+        if (!this.twoFactor.verify(otp, this.twoFactor.decrypt(user.secretKey))) {
+            throw new BadRequestException("Invalid or expired code");
+        }
+
+        await this.userRepo.update({ id: userId }, {
+            enabledTwoFactorAuthentication: false,
+            secretKey: null,
+            pendingSecretKey: null
+        });
+
+        return { statusCode: 200, message: "Two-factor authentication disabled", data: {} };
+    };
 
     async getAccessToken(@Req() req: Request): Promise<Isuccess> {
         let refreshToken = req?.cookies?.refreshToken;
@@ -269,5 +380,12 @@ export class AuthService {
         } catch (error) {
             throw new UnauthorizedException("Something went wrong, please sign in again.")
         }
+    };
+
+    private issueTokens(userId: string, res: Response, message: string): Isuccess {
+        const payload = { id: userId };
+        const authToken = this.token.getAccessToken(payload);
+        const refreshToken = this.token.getRefreshToken(res, payload);
+        return { statusCode: 200, message, data: { authToken, refreshToken } };
     }
 }

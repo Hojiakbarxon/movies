@@ -17,6 +17,7 @@ import { R2Service } from '../utils/r2.service';
 import { MailService } from '../utils/mail.service';
 import { Actor } from '../users/entities/actors.entity';
 import { Schedule } from './schedules/scheduled.tasks.service';
+import { TwoFactorService } from './two-factor-authentication/two-factor.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([
@@ -30,6 +31,6 @@ import { Schedule } from './schedules/scheduled.tasks.service';
     Actor
   ])],
   controllers: [AuthController],
-  providers: [AuthService, Conflict, Token, Crypto, UsersService, R2Service, MailService, Schedule]
+  providers: [AuthService, Conflict, Token, Crypto, UsersService, R2Service, MailService, Schedule, TwoFactorService]
 })
 export class AuthModule { }

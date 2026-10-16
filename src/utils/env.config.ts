@@ -17,7 +17,12 @@ export let envConfig = {
         refresh: {
             time: String(process.env.REFRESH_TOKEN_TIME),
             key: String(process.env.REFRESH_TOKEN_KEY)
-        }
+        },
+        twoFactor: {
+            tokenKey: String(process.env.TWO_FACTOR_TOKEN_KEY),
+            encryptionKey: String(process.env.TWO_FACTOR_ENCRYPTION_KEY),
+            issuer: String(process.env.TWO_FACTOR_ISSUER ?? 'Movies Platform'),
+        },
     },
     superadmin: {
         email: String(process.env.SUPER_ADMIN_EMAIL),

@@ -171,7 +171,8 @@ export class UsersService {
         username: true,
         avatar_url: true,
         password_hash: true,
-        role: true
+        role: true,
+        enabledTwoFactorAuthentication : true
       },
     });
 

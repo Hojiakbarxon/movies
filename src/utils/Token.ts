@@ -25,7 +25,7 @@ export class Token {
             httpOnly: true,
             secure: true,
             maxAge: 7 * 24 * 3600 * 1000,
-            sameSite : "none"
+            sameSite: "none"
         });
 
         return refreshToken
@@ -39,5 +39,17 @@ export class Token {
     verifyRefreshToken(refreshToken: string): string | jwt.JwtPayload {
         let secretKey = envConfig.token.refresh.key;
         return jwt.verify(refreshToken, secretKey);
+    };
+    
+    getTwoFactorToken(payload: object): string {
+        return jwt.sign({ ...payload, purpose: '2fa' }, envConfig.token.twoFactor.tokenKey, {
+            expiresIn: '5m',
+        });
+    };
+
+    verifyTwoFactorToken(token: string): jwt.JwtPayload {
+        const data = jwt.verify(token, envConfig.token.twoFactor.tokenKey) as jwt.JwtPayload;
+        if (data.purpose !== '2fa') throw new Error('Invalid token purpose');
+        return data;
     };
 }

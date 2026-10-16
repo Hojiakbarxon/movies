@@ -44,12 +44,21 @@ export class User extends TimestampedEntity {
   @OneToOne(() => Profile, (profile) => profile.user, { cascade: true })
   profile: Profile;
 
+  @Column({ type: 'boolean', default: false })
+  enabledTwoFactorAuthentication: boolean;
+
+  @Column({ type: 'varchar', length: 255, nullable: true, select: false })
+  secretKey: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true, select: false })
+  pendingSecretKey: string | null;
+
   @OneToMany(() => Movie, (movies) => movies.created_by)
   movies: Movie[]
 
   @OneToMany(() => Favourites, (favourites) => favourites.user)
   favourites: Favourites[];
-  
+
   @OneToMany(() => Reviews, (reviews) => reviews.user)
   reviews: Reviews[];
 }

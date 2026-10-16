@@ -1,5 +1,4 @@
 import { BadRequestException, CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
-import { Observable } from 'rxjs';
 import { Token } from '../../../utils/Token';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from '../../../users/entities/user.entity';
